@@ -1,0 +1,492 @@
+#!/usr/bin/env bash
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+_bin="$( \
+  dirname \
+    "$( \
+      command \
+        -v \
+	  "env")")"
+_lib="${_bin}/../lib"
+source \
+  "${_lib}/libcrash-bash/crash-bash"
+source \
+  "${_lib}/libevm/libevm"
+
+# shellcheck disable=SC2034
+_global_variables() {
+  call_date=""
+  wallet_name=""
+  wallet_path=""
+  wallet_password=""
+  wallet_seed=""
+  wallet_address=""
+  gnupg_home=""
+  key_passphrase=""
+  key_comment=""
+  target_command=""
+  target_key=""
+  target_value=""
+  command_args=()
+  color=""
+  quiet=""
+}
+
+_requirements() {
+  _check_cmd \
+    'libevm-requirements'
+  libevm-requirements
+  _check_cmd \
+    'evm-contract-call' \
+    'evm-contracts-tools'
+  _check_cmd \
+    'evm-contract-deployment-networks' \
+    'evm-contracts-tools'
+  _check_cmd \
+    'evm-wallet'
+  _check_cmd \
+    'evm-openpgp-key-receive' \
+    'evm-openpgp-keyserver'
+}
+
+_get_conf_dir_path() {
+  local \
+    _dir
+  _dir="${HOME}/.config/evm-gnupg"
+  echo \
+    "${_dir}"
+}
+
+_secret_keys_list() {
+  local \
+    _gnupg_home="${1}"
+  gpg \
+    --homedir \
+      "${gnupg_home}" \
+    --list-secret-keys
+}
+
+# Generate an OpenPGP key for the input address
+_key_new() {
+  local \
+    _gnupg_home="${1}" \
+    _email="${2}" \
+    _name="${3}" \
+    _comment="${4}" \
+    _passphrase="${5}" \
+    _gpg_conf_array=() \
+    _gpg_generate_array=() \
+    _gpg_opts=()
+  _gpg_opts+=(
+    --homedir
+      "${_gnupg_home}"
+    --gen-key
+  )
+  _gpg_conf_array+=(
+    "quiet"
+    "batch"
+    "no-tty"
+    "no-permission-warning"
+    "export-options no-export-attributes,export-clean"
+    "list-options no-show-keyring"
+    "armor"
+    "no-emit-version"
+  )
+  _gpg_generate_array+=(
+    "%echo Generating key pair for '${_name}'..."
+    "Key-Type: default"
+    "Key-Length: 3072"
+    "Key-Usage: sign"
+    "Name-Real: ${_name}"
+  )
+  if [[ "${_passphrase}" != "" ]]; then
+    _gpg_generate_array+=(
+      "Name-Comment: ${_comment}"
+    )
+  fi
+  _gpg_generate_array+=(
+    "Name-Email: ${_email}"
+  )
+  if [[ "${_passphrase}" != "" ]]; then
+    _gpg_generate_array+=(
+      "Passphrase: ${_passphrase}"
+    )
+  fi
+  _gpg_generate_array+=(
+    "Expire-Date: 0"
+  )
+  if [[ "${_passphrase}" == "" ]]; then
+    _gpg_generate_array+=(
+      "%no-protection"
+    )
+  fi
+  mkdir \
+    -p \
+    "${_gnupg_home}"
+  chmod \
+    700 \
+    "${_gnupg_home}"
+  cat << \
+    __EOF__ > \
+      "${_gnupg_home}"/gpg.conf
+$(printf \
+    '%s\n' \
+    "${_gpg_conf_array[@]}")
+__EOF__
+  gpg \
+    "${_gpg_opts[@]}" <<EOF
+$(printf \
+    '%s\n' \
+    "${_gpg_generate_array[@]}")
+EOF
+}
+
+_evm_gpg() {
+  local \
+    _wallet_name="${1}" \
+    _wallet_path="${2}" \
+    _wallet_password="${3}" \
+    _wallet_seed="${4}" \
+    _gnupg_home="${5}" \
+    _key_passphrase="${6}" \
+    _key_comment="${7}" \
+    _target_command="${8}" \
+    _target_key="${9}" \
+    _target_value="${10}" \
+    _command_args=() \
+    _args=() \
+    _address \
+    _name \
+    _email \
+    _full_name
+  shift \
+    10
+  _command_args+=(
+    "$@"
+  )
+  _address="$( \
+    evm-wallet \
+     get \
+       "${_wallet_name}" \
+       "address")"
+  if [[ "${_target_command}" == "new" ]]; then
+    _name="${_target_key}"
+    _email="${_name}@${_address}"
+    _full_name="${_target_value}"
+    _key_new \
+      "${_gnupg_home}" \
+      "${_email}" \
+      "${_full_name}" \
+      "${_key_comment}" \
+      "${_key_passphrase}"
+  elif [[ "${_target_command}" == "list" ]]; then
+    _secret_key_list \
+      "${_gnupg_home}"
+  else
+    _msg_error \
+      "unknown command '${_target_command}'"
+  fi
+}
+
+_set_overrides() {
+  local \
+    _msg=()
+  if [[ -v override_quiet ]]; then
+    quiet="${override_quiet}"
+  elif [[ -z "${quiet}" ]]; then
+    quiet="y"
+  fi
+  if [[ -v override_color ]]; then
+    color="${override_color}"
+  elif [[ -z "${color}" ]]; then
+    color="n"
+  fi
+  _set_override \
+    "call" \
+    "date" \
+    "$(_get_date_human)"
+  _set_override \
+    "wallet" \
+    "name" \
+    "default"
+  _set_override \
+    "wallet" \
+    "path" \
+    "$(_wallet_path_get \
+         "evm-wallet" \
+         "$(_get \
+              "wallet" \
+              "name")")"
+  _secret_auto_detect \
+    "seed" \
+    "seed" \
+    "evm-wallet" \
+    "$(_get \
+         "wallet" \
+         "name")"
+  _secret_auto_detect \
+    "password" \
+    "plain" \
+    "evm-wallet" \
+    "$(_get \
+         "wallet" \
+         "name")"
+  _set_override \
+    "wallet" \
+    "address" \
+    "$(evm-wallet \
+         get \
+           "$(_get \
+                "wallet" \
+                "name")" \
+           "address")"
+  _set_override \
+    "gnupg" \
+    "home" \
+    "$(_get_conf_dir_path)"
+  _set_override \
+    "target" \
+    "command" \
+    "new"
+  _set_override \
+    "target" \
+    "key" \
+    ""
+  _set_override \
+    "target" \
+    "value" \
+    ""
+  _set_override \
+    "key" \
+    "passphrase" \
+    ""
+  _set_override \
+    "key" \
+    "comment" \
+    ""
+  if [[ "${target_command}" == "new" ]]; then
+    if [[ "${target_key}" == "" ]]; then
+      _msg=(
+        "You are creating a key without setting an username."
+      )
+      _msg_error \
+        "${_msg[*]}" \
+        0
+      _usage \
+        1
+    fi
+    if [[ "${target_value}" == "" ]]; then
+      _msg=(
+        "You are creating a key without setting a name."
+      )
+      _msg_error \
+        "${_msg[*]}" \
+        0
+      _usage \
+        1
+    fi
+    if [[ "${key_passphrase}" == "" ]]; then
+      _msg=(
+        "You are creating a key without a passphrase."
+      )
+      _msg_warning \
+        "${_msg[*]}"
+    fi
+  fi
+}
+
+# Show help usage, with an exit status.
+# $1: exit status number.
+_usage() {
+  local \
+    _usage_text
+  IFS='' \
+    read \
+      -r \
+      -d '' \
+      _usage_text << \
+        ENDUSAGETEXT || true
+GNUPG wrapper for use by the EVM Toolchain
+
+Usage:
+  $(_get "app" "name")
+    [options]
+    <command>
+    <key>
+    <value>
+
+  commands:
+    new
+      <username>
+      <full_name>
+    list
+
+  options:
+     -N <wallet_name>       Wallet name.
+                            Default: $(_get "wallet" "name")
+     -w <wallet_path>       Wallet path.
+                            Default: $(_get "wallet" "path")
+     -p <wallet_password>   Wallet password.
+                            Default: $(_get "wallet" "password")
+     -s <wallet_seed>       Wallet seed path.
+                            Default: $(_get "wallet" "seed")
+     -H <gnupg_home>        GNUPG home directory
+                            Default: $(_get "gnupg" "home")
+     -P <passphrase>        Key passphrase (for 'new' command).
+                            Default: $(_get "key" "passphrase")
+     -C <comment>           Key comment (for 'new' command).
+                            Default: $(_get "key" "comment")
+
+
+     -h                     This message.
+     -c                     Enable color output
+     -v                     Enable verbose output
+ENDUSAGETEXT
+  _printf \
+    '%s\n' \
+    "${_usage_text}"
+  exit \
+    "${1}"
+}
+
+_display_flags() {
+  local \
+    _flag \
+    _flags=(
+      "${1}"
+    )
+  for _flag \
+    in "${_flags[@]}"; do
+  _msg_info \
+    "                             ${_flag}"
+  done
+}
+
+# Shows configuration options.
+_show_config() {
+  local \
+    _passphrase_show
+  if [[ "${key_passphrase}" != "" ]]; then
+    _passphrase_show="****"
+  fi
+  _msg_info "${app_name} configuration"
+  _msg_info "                Call date:   $(_get "call" "date")"
+  _msg_info "           Wallet address:   $(_get "wallet" "address")"
+  _msg_info "              Wallet name:   $(_get "wallet" "name")"
+  _msg_info "              Wallet path:   $(_get "wallet" "path")"
+  _msg_info "          Wallet password:   $(_get "wallet" "password")"
+  _msg_info "              Wallet seed:   $(_get "wallet" "seed")"
+  _msg_info "          GNUPG directory:   $(_get "gnupg" "home")"
+  _msg_info "           Key passphrase:   $(_get "_passphrase" "show")"
+  _msg_info "              Key comment:   $(_get "key" "comment")"
+  _msg_info "           Target command:   $(_get "target" "command")"
+  _msg_info "               Target key:   $(_get "target" "key")"
+  _msg_info "             Target value:   $(_get "target" "value")"
+}
+
+_globals
+_global_variables
+_requirements
+# shellcheck disable=SC2034
+while \
+  getopts \
+    'N:w:p:s:H:P:C:cvh?' \
+    arg; do
+  case \
+    "${arg}" in
+    N) override_wallet_name="${OPTARG}" ;;
+    w) override_wallet_path="${OPTARG}" ;;
+    p) override_wallet_password="${OPTARG}" ;;
+    s) override_wallet_seed="${OPTARG}" ;;
+    H) override_gnupg_home="${OPTARG}" ;;
+    P) override_key_passphrase="${OPTARG}" ;;
+    C) override_key_comment="${OPTARG}" ;;
+    c) override_color="y" ;;
+    v) override_quiet="n" ;;
+    h|?) _set_overrides && \
+         _usage \
+           0 ;;
+    *)
+    _msg_error \
+      "Invalid argument '${arg}'" \
+      0
+    _usage \
+      1
+    ;;
+  esac
+done
+shift \
+  $(( \
+    OPTIND - 1 \
+  ))
+if (( $# < 1 )); then
+  _msg_error \
+    "no command given" \
+    0
+  _set_overrides
+  _usage \
+    1
+fi
+if (( 0 < $# )); then
+  _set \
+    "target" \
+    "command" \
+    "${1}"
+fi
+if (( 1 < $# )); then
+  _set \
+    "target" \
+    "key" \
+    "${2}"
+fi
+if (( 2 < $# )); then
+  _set \
+    "target" \
+    "value" \
+    "${3}"
+fi
+shift \
+  3 || \
+  true
+command_args+=(
+  "$@"
+)
+_set_overrides
+_show_config
+app_opts=(
+  "$(_get \
+       "wallet" \
+       "name")"
+  "$(_get \
+       "wallet" \
+       "path")"
+  "$(_get \
+       "wallet" \
+       "password")"
+  "$(_get \
+       "wallet" \
+       "seed")"
+  "$(_get \
+       "gnupg" \
+       "home")"
+  "$(_get \
+       "key" \
+       "passphrase")"
+  "$(_get \
+       "key" \
+       "comment")"
+  "$(_get \
+       "target" \
+       "command")"
+  "$(_get \
+       "target" \
+       "key")"
+  "$(_get \
+       "target" \
+       "value")"
+)
+_evm_gpg \
+  "${app_opts[@]}"
+
+# vim:set sw=2 sts=-1 et:
