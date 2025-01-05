@@ -73,8 +73,8 @@ _key_new() {
     _gnupg_home="${1}" \
     _email="${2}" \
     _name="${3}" \
-    _comment="${4}" \
-    _passphrase="${5}" \
+    _passphrase="${4}" \
+    _comment="${5}" \
     _gpg_conf_array=() \
     _gpg_generate_array=() \
     _gpg_opts=()
@@ -95,12 +95,16 @@ _key_new() {
   )
   _gpg_generate_array+=(
     "%echo Generating key pair for '${_name}'..."
-    "Key-Type: default"
-    "Key-Length: 3072"
+    "Key-Type: eddsa"
+    "Key-Curve: ed25519"
+    # "Key-Length: 4096"
     "Key-Usage: sign"
+    "SubKey-Type: ecdh"
+    "SubKey-Curve: cv25519"
+    "SubKey-Usage: encrypt"
     "Name-Real: ${_name}"
   )
-  if [[ "${_passphrase}" != "" ]]; then
+  if [[ "${_comment}" != "" ]]; then
     _gpg_generate_array+=(
       "Name-Comment: ${_comment}"
     )
@@ -121,6 +125,10 @@ _key_new() {
       "%no-protection"
     )
   fi
+  _gpg_generate_array+=(
+    "%commit"
+    "%echo Done"
+  )
   mkdir \
     -p \
     "${_gnupg_home}"
@@ -178,8 +186,8 @@ _evm_gpg() {
       "${_gnupg_home}" \
       "${_email}" \
       "${_full_name}" \
-      "${_key_comment}" \
-      "${_key_passphrase}"
+      "${_key_passphrase}" \
+      "${_key_comment}"
   elif [[ "${_target_command}" == "list" ]]; then
     _secret_key_list \
       "${_gnupg_home}"
