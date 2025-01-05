@@ -1,6 +1,6 @@
 # EVM GNUPG
 
-A GNUPG wrapper to create an Ur compatible GPG key.
+A GNUPG wrapper to create an EVM-compatible GPG key.
 
 ```bash
 evm-gpg \
