@@ -256,7 +256,7 @@ _set_overrides() {
   _set_override \
     "target" \
     "command" \
-    "new"
+    "list"
   _set_override \
     "target" \
     "key" \
@@ -315,6 +315,7 @@ _usage() {
       -d '' \
       _usage_text << \
         ENDUSAGETEXT || true
+
 GNUPG wrapper for use by the EVM Toolchain
 
 Usage:
