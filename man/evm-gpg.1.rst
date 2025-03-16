@@ -42,6 +42,9 @@ Description
 GNUPG wrapper for use by the Ethereum
 Virtual Machine (EVM) Toolchain.
 
+EVM GNUPG uses EVM Wallet to interface with
+wallets.
+
 Commands
 =========
 
@@ -82,5 +85,6 @@ See also
 
 * evm-openpgp-key-publish
 * evm-openpgp-key-receive
+* evm-wallet
 
 .. include:: variables.rst

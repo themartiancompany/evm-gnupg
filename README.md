@@ -23,8 +23,10 @@
 
 GNUPG wrapper to manage an EVM-compatible GPG keys.
 
-
-EVM GNUPG is a dependency for the
+EVM GNUPG uses
+[EVM Wallet](
+  https://github.com/themartiancompany/evm-wallet)
+to interface with wallets and it is a dependency for the
 [Ur](
   https://github.com/themartiancompany/ur)
 uncensorable Life and DogeOS user repository
@@ -32,6 +34,8 @@ and application store, which uses it to
 generate a new Ethereum Virtual Machine
 compatible network account's (an Ethereum wallet)
 valid OpenPGP key, if not already present on the system.
+
+EVM GNUPG is part of the EVM Toolchain.
 
 ## Installation
 
