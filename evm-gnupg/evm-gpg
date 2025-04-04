@@ -73,7 +73,7 @@ _secret_keys_list() {
     _gnupg_home="${1}"
   gpg \
     --homedir \
-      "${gnupg_home}" \
+      "${_gnupg_home}" \
     --list-secret-keys
 }
 
