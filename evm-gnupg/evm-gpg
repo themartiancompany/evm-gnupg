@@ -64,15 +64,6 @@ _get_conf_dir_path() {
     "${_dir}"
 }
 
-_secret_keys_list() {
-  local \
-    _gnupg_home="${1}"
-  gpg \
-    --homedir \
-      "${gnupg_home}" \
-    --list-secret-keys
-}
-
 # Generate an OpenPGP key for the input address
 _key_new() {
   local \
@@ -159,16 +150,21 @@ EOF
 _secret_keys_list() {
   local \
     _gnupg_home="${1}" \
+    _query="${2}" \
     _gpg_opts=()
   _gpg_opts+=(
     --homedir
       "${_gnupg_home}"
     --list-secret-keys
   )
+  if [[ "${_query}" != "" ]]; then
+    _gpg_opts+=(
+      "${_query}"
+    )
+  fi
   GNUPGHOME="${_gnupg_home}" \
   gpg \
-    "${_gpg_opts[@]}" \
-    "@${wallet_address}"
+    "${_gpg_opts[@]}"
 }
 
 _evm_gpg() {
@@ -194,12 +190,12 @@ _evm_gpg() {
   _command_args+=(
     "$@"
   )
-  _address="$( \
-    evm-wallet \
-     get \
-       "${_wallet_name}" \
-       "address")"
   if [[ "${_target_command}" == "new" ]]; then
+    _address="$( \
+      evm-wallet \
+       get \
+         "${_wallet_name}" \
+         "address")"
     _name="${_target_key}"
     _email="${_name}@${_address}"
     _full_name="${_target_value}"
@@ -210,8 +206,22 @@ _evm_gpg() {
       "${_key_passphrase}" \
       "${_key_comment}"
   elif [[ "${_target_command}" == "list" ]]; then
+    _address=""
+    if [[ "${_wallet_name}" != "" ]]; then
+      _address="$( \
+        evm-wallet \
+         get \
+           "${_wallet_name}" \
+           "address")"
+    fi
+    _query="${target_key}"
+    if [[ "${_query}" == "" && \
+          "${_address}" != "" ]]; then
+      _query="@${_address}"
+    fi
     _secret_keys_list \
-      "${_gnupg_home}"
+      "${_gnupg_home}" \
+      "${_query}"
   else
     _msg=(
       "Unknown command '${_target_command}'."
@@ -222,9 +232,34 @@ _evm_gpg() {
   fi
 }
 
+_gnupg_home_auto_detect() {
+  local \
+    _gnupg_home \
+    _gnupg_home_default
+  _gnupg_home=""
+  _gnupg_home_default="$( \
+    _get_conf_dir_path)"
+  if [[ ! -v "override_gnupg_home" ]]; then
+    if [[ ! -d "${_gnupg_home}" ]]; then
+      mkdir \
+        -p \
+        "${_gnupg_home_default}"
+      chmod \
+        700 \
+        "${_gnupg_home_default}"
+    fi
+    _gnupg_home="${_gnupg_home_default}"
+  fi
+  _set_override \
+    "gnupg" \
+    "home" \
+    "${_gnupg_home}"
+}
+
 _set_overrides() {
   local \
-    _msg=()
+    _msg=() \
+    _wallet_name
   if [[ -v override_quiet ]]; then
     quiet="${override_quiet}"
   elif [[ -z "${quiet}" ]]; then
@@ -240,44 +275,22 @@ _set_overrides() {
     "date" \
     "$(_get_date_human)"
   _set_override \
-    "wallet" \
-    "name" \
-    "default"
-  _set_override \
-    "wallet" \
-    "path" \
-    "$(_wallet_path_get \
-         "evm-wallet" \
-         "${wallet_name}")"
-  _secret_auto_detect \
-    "seed" \
-    "seed" \
-    "evm-wallet" \
-    "$(_get \
-         "wallet" \
-         "name")"
-  _secret_auto_detect \
-    "password" \
-    "plain" \
-    "evm-wallet" \
-    "$(_get \
-         "wallet" \
-         "name")"
-  _set_override \
-    "wallet" \
-    "address" \
-    "$(evm-wallet \
-         get \
-           "${wallet_name}" \
-           "address")"
-  _set_override \
-    "gnupg" \
-    "home" \
-    "$(_get_conf_dir_path)"
-  _set_override \
     "target" \
     "command" \
     "list"
+  _wallet_name=""
+  if [[ "${target_command}" != "list" ]]; then
+    _wallet_name="default"
+  fi
+  _set_override \
+    "wallet" \
+    "name" \
+    "${_wallet_name}"
+  _wallet_overrides_set \
+    "evm-wallet" \
+    "${wallet_name}" \
+    "n" # "${call_auth}"
+  _gnupg_home_auto_detect
   _set_override \
     "target" \
     "key" \
@@ -351,8 +364,17 @@ Usage:
       <username>
       <full_name>
     list
+      (<output_type>)
 
   options:
+     -H <gnupg_home>        GNUPG home directory
+                            Default: ${gnupg_home}
+     -P <passphrase>        Key passphrase (for 'new' command).
+                            Default: ${key_passphrase}
+     -C <comment>           Key comment (for 'new' command).
+                            Default: ${key_comment}
+
+  credentials options:
      -N <wallet_name>       Wallet name.
                             Default: ${wallet_name}
      -w <wallet_path>       Wallet path.
@@ -361,12 +383,6 @@ Usage:
                             Default: ${wallet_password}
      -s <wallet_seed>       Wallet seed path.
                             Default: ${wallet_seed}
-     -H <gnupg_home>        GNUPG home directory
-                            Default: ${gnupg_home}
-     -P <passphrase>        Key passphrase (for 'new' command).
-                            Default: ${key_passphrase}
-     -C <comment>           Key comment (for 'new' command).
-                            Default: ${key_comment}
 
      -h                     This message.
      -c                     Enable color output
@@ -401,17 +417,19 @@ _show_config() {
   fi
   _msg_info "${app_name} configuration"
   _msg_info "                Call date:   ${call_date}"
-  _msg_info "           Wallet address:   ${wallet_address}"
-  _msg_info "              Wallet name:   ${wallet_name}"
-  _msg_info "              Wallet path:   ${wallet_path}"
-  _msg_info "          Wallet password:   ${wallet_password}"
-  _msg_info "              Wallet seed:   ${wallet_seed}"
-  _msg_info "          GNUPG directory:   ${gnupg_home}"
-  _msg_info "           Key passphrase:   ${_passphrase_show}"
-  _msg_info "              Key comment:   ${key_comment}"
   _msg_info "           Target command:   ${target_command}"
   _msg_info "               Target key:   ${target_key}"
   _msg_info "             Target value:   ${target_value}"
+  _msg_info "          GNUPG directory:   ${gnupg_home}"
+  _msg_info "        New key options:"
+  _msg_info "           Key passphrase:   ${_passphrase_show:-}"
+  _msg_info "              Key comment:   ${key_comment}"
+  _msg_info "    Credentials options:"
+  _msg_info "              Wallet name:   ${wallet_name}"
+  _msg_info "           Wallet address:   ${wallet_address}"
+  _msg_info "              Wallet path:   ${wallet_path}"
+  _msg_info "          Wallet password:   ${wallet_password}"
+  _msg_info "              Wallet seed:   ${wallet_seed}"
 }
 
 _globals
