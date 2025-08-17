@@ -147,7 +147,7 @@ $(printf \
 EOF
 }
 
-_secret_keys_list() {
+_keys_secret_list() {
   local \
     _gnupg_home="${1}" \
     _query="${2}" \
@@ -167,6 +167,42 @@ _secret_keys_list() {
     "${_gpg_opts[@]}"
 }
 
+_keys_import() {
+  local \
+    _gnupg_home="${1}" \
+    _source_import="${2}" \
+    _export_opts=() \
+    _import_opts=() \
+    _export_secret
+  if [[ -d "${_source_import}" ]]; then
+    _export_secret="${_cache_dir}/secret.asc"
+    _export_opts+=(
+      --homedir
+        "${_source_import}"
+      --export-secret-key
+      --armor
+    )
+    _import_opts+=(
+      --homedir
+        "${_gnupg_home}"
+      --import
+    )
+    gpg \
+      "${_export_opts[@]}" > \
+      "${_export_secret}"
+    gpg \
+      "${_import_opts[@]}" \
+      "${_export_secret}"
+    rm \
+      -rf \
+      "${_export_secret}"
+  elif [[ "${_source_import}" == "0x"* && \
+          "${#_source_import}" == "42" ]]; then
+    if [[]]; then
+    fi
+  fi
+}
+
 _evm_gpg() {
   local \
     _wallet_name="${1}" \
@@ -176,17 +212,19 @@ _evm_gpg() {
     _gnupg_home="${5}" \
     _key_passphrase="${6}" \
     _key_comment="${7}" \
-    _target_command="${8}" \
-    _target_key="${9}" \
-    _target_value="${10}" \
+    _cache_dir="${8}" \
+    _target_command="${9}" \
+    _target_key="${10}" \
+    _target_value="${11}" \
     _command_args=() \
     _args=() \
     _address \
     _name \
     _email \
-    _full_name
+    _full_name \
+    _source_import
   shift \
-    10
+    11
   _command_args+=(
     "$@"
   )
@@ -205,6 +243,10 @@ _evm_gpg() {
       "${_full_name}" \
       "${_key_passphrase}" \
       "${_key_comment}"
+  elif [[ "${_target_command}" == "import" ]]; then
+    _source_import="${target_key}"
+    _keys_import \
+      "${_source_import}"
   elif [[ "${_target_command}" == "list" ]]; then
     _address=""
     if [[ "${_wallet_name}" != "" ]]; then
@@ -219,7 +261,7 @@ _evm_gpg() {
           "${_address}" != "" ]]; then
       _query="@${_address}"
     fi
-    _secret_keys_list \
+    _keys_secret_list \
       "${_gnupg_home}" \
       "${_query}"
   else
@@ -274,6 +316,10 @@ _set_overrides() {
     "call" \
     "date" \
     "$(_get_date_human)"
+  _set_override \
+    "cache" \
+    "dir" \
+    "${HOME}/.cache/${app_name}"
   _set_override \
     "target" \
     "command" \
@@ -437,6 +483,8 @@ _show_config() {
   _msg_info "              Wallet path:   ${wallet_path}"
   _msg_info "          Wallet password:   ${wallet_password}"
   _msg_info "              Wallet seed:   ${wallet_seed}"
+  _msg_info "    Application options:"
+  _msg_info "          Cache directory:   ${cache_dir}"
 }
 
 _globals
@@ -451,7 +499,7 @@ getopts_opts="$( \
     "$(_libevm_app_getopts_params_get)" \
     "n:" \
     "$(_wallet_getopts_params_get)" \
-    "cvh")"
+    "W:cvh")"
 # shellcheck disable=SC2034
 while \
   getopts \
@@ -475,6 +523,8 @@ while \
       override_key_passphrase="${OPTARG}" ;;
     C) \
       override_key_comment="${OPTARG}" ;;
+    W) \
+      override_cache_dir="${OPTARG}" ;;
     c) \
       override_color="y" ;;
     v) \
@@ -530,9 +580,11 @@ app_opts=(
   "${gnupg_home}"
   "${key_passphrase}"
   "${key_comment}"
+  "${_cache_dir}"
   "${target_command}"
   "${target_key}"
   "${target_value}"
+  "${command_args[@]}"
 )
 _evm_gpg \
   "${app_opts[@]}"

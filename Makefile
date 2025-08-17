@@ -47,4 +47,4 @@ install-man:
 	  "man/evm-gpg.1.rst" \
 	  "$(MAN_DIR)/man1/evm-gpg.1"
 
-.PHONY: check install install-doc install-scripts shellcheck
+.PHONY: check install install-doc install-man install-scripts shellcheck
