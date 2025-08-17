@@ -365,6 +365,13 @@ Usage:
       <full_name>
     list
       (<output_type>)
+    import
+      <import_source>
+
+  import sources:
+    directory
+    fingerprint
+    file
 
   options:
      -H <gnupg_home>        GNUPG home directory

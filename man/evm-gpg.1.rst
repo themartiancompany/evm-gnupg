@@ -36,6 +36,7 @@ Synopsis
 
 evm-gpg *[options]* *command* *[command_args]*
 
+
 Description
 ===========
 Ethereum Virtual Machine (EVM) compatible
@@ -47,14 +48,18 @@ Commands
 
 * new *username* *full_name*
 
+* import *import_source*
+
 * list
 
-Keys
-=====
 
-* address
-* balance
-* seed
+Import sources
+===============
+
+* directory
+* fingerprint
+* file
+
 
 Networks
 =========
