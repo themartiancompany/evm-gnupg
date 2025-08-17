@@ -163,11 +163,11 @@ _secret_keys_list() {
   _gpg_opts+=(
     --homedir
       "${_gnupg_home}"
+    --list-secret-keys
   )
   GNUPGHOME="${_gnupg_home}" \
   gpg \
     "${_gpg_opts[@]}" \
-    --list-secret-keys \
     "@${wallet_address}"
 }
 
@@ -213,8 +213,12 @@ _evm_gpg() {
     _secret_keys_list \
       "${_gnupg_home}"
   else
-    _msg_error \
+    _msg=(
       "Unknown command '${_target_command}'."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
   fi
 }
 
@@ -244,9 +248,7 @@ _set_overrides() {
     "path" \
     "$(_wallet_path_get \
          "evm-wallet" \
-         "$(_get \
-              "wallet" \
-              "name")")"
+         "${wallet_name}")"
   _secret_auto_detect \
     "seed" \
     "seed" \
@@ -266,9 +268,7 @@ _set_overrides() {
     "address" \
     "$(evm-wallet \
          get \
-           "$(_get \
-                "wallet" \
-                "name")" \
+           "${wallet_name}" \
            "address")"
   _set_override \
     "gnupg" \
@@ -340,7 +340,7 @@ _usage() {
 GNUPG wrapper for use by the EVM Toolchain
 
 Usage:
-  $(_get "app" "name")
+  ${app_name}
     [options]
     <command>
     <key>
@@ -354,20 +354,19 @@ Usage:
 
   options:
      -N <wallet_name>       Wallet name.
-                            Default: $(_get "wallet" "name")
+                            Default: ${wallet_name}
      -w <wallet_path>       Wallet path.
-                            Default: $(_get "wallet" "path")
+                            Default: ${wallet_path}
      -p <wallet_password>   Wallet password.
-                            Default: $(_get "wallet" "password")
+                            Default: ${wallet_password}
      -s <wallet_seed>       Wallet seed path.
-                            Default: $(_get "wallet" "seed")
+                            Default: ${wallet_seed}
      -H <gnupg_home>        GNUPG home directory
-                            Default: $(_get "gnupg" "home")
+                            Default: ${gnupg_home}
      -P <passphrase>        Key passphrase (for 'new' command).
-                            Default: $(_get "key" "passphrase")
+                            Default: ${key_passphrase}
      -C <comment>           Key comment (for 'new' command).
-                            Default: $(_get "key" "comment")
-
+                            Default: ${key_comment}
 
      -h                     This message.
      -c                     Enable color output
@@ -401,18 +400,18 @@ _show_config() {
     _passphrase_show="****"
   fi
   _msg_info "${app_name} configuration"
-  _msg_info "                Call date:   $(_get "call" "date")"
-  _msg_info "           Wallet address:   $(_get "wallet" "address")"
-  _msg_info "              Wallet name:   $(_get "wallet" "name")"
-  _msg_info "              Wallet path:   $(_get "wallet" "path")"
-  _msg_info "          Wallet password:   $(_get "wallet" "password")"
-  _msg_info "              Wallet seed:   $(_get "wallet" "seed")"
-  _msg_info "          GNUPG directory:   $(_get "gnupg" "home")"
-  _msg_info "           Key passphrase:   $(_get "_passphrase" "show")"
-  _msg_info "              Key comment:   $(_get "key" "comment")"
-  _msg_info "           Target command:   $(_get "target" "command")"
-  _msg_info "               Target key:   $(_get "target" "key")"
-  _msg_info "             Target value:   $(_get "target" "value")"
+  _msg_info "                Call date:   ${call_date}"
+  _msg_info "           Wallet address:   ${wallet_address}"
+  _msg_info "              Wallet name:   ${wallet_name}"
+  _msg_info "              Wallet path:   ${wallet_path}"
+  _msg_info "          Wallet password:   ${wallet_password}"
+  _msg_info "              Wallet seed:   ${wallet_seed}"
+  _msg_info "          GNUPG directory:   ${gnupg_home}"
+  _msg_info "           Key passphrase:   ${_passphrase_show}"
+  _msg_info "              Key comment:   ${key_comment}"
+  _msg_info "           Target command:   ${target_command}"
+  _msg_info "               Target key:   ${target_key}"
+  _msg_info "             Target value:   ${target_value}"
 }
 
 _globals
@@ -425,21 +424,34 @@ while \
     arg; do
   case \
     "${arg}" in
-    N) override_wallet_name="${OPTARG}" ;;
-    w) override_wallet_path="${OPTARG}" ;;
-    p) override_wallet_password="${OPTARG}" ;;
-    s) override_wallet_seed="${OPTARG}" ;;
-    H) override_gnupg_home="${OPTARG}" ;;
-    P) override_key_passphrase="${OPTARG}" ;;
-    C) override_key_comment="${OPTARG}" ;;
-    c) override_color="y" ;;
-    v) override_quiet="n" ;;
-    h|?) _set_overrides && \
-         _usage \
-           0 ;;
+    N) \
+      override_wallet_name="${OPTARG}" ;;
+    w) \
+      override_wallet_path="${OPTARG}" ;;
+    p) \
+      override_wallet_password="${OPTARG}" ;;
+    s) \
+      override_wallet_seed="${OPTARG}" ;;
+    H) \
+      override_gnupg_home="${OPTARG}" ;;
+    P) \
+      override_key_passphrase="${OPTARG}" ;;
+    C) \
+      override_key_comment="${OPTARG}" ;;
+    c) \
+      override_color="y" ;;
+    v) \
+      override_quiet="n" ;;
+    h|?) \
+      _set_overrides && \
+      _usage \
+        0 ;;
     *)
+    _msg=(
+      "Invalid argument '${arg}'"
+    )
     _msg_error \
-      "Invalid argument '${arg}'" \
+      "${_msg[*]}" \
       0
     _usage \
       1
