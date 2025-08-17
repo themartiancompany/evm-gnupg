@@ -8,11 +8,17 @@ _bin="$( \
       command \
         -v \
 	  "env")")"
-_lib="${_bin}/../lib"
-source \
-  "${_lib}/libcrash-bash/crash-bash"
-source \
-  "${_lib}/libevm/libevm"
+_lib="$( \
+  realpath \
+    "${_bin}/../lib")"
+_crash_bash="${_lib}/libcrash-bash/crash-bash"
+_libevm="${_lib}/libevm/libevm"
+_sourced \
+  "${_crash_bash}" 2>/dev/null || \
+  source \
+    "${_crash_bash}"
+_sourced \
+  "${_libevm}"
 
 # shellcheck disable=SC2034
 _global_variables() {
@@ -150,6 +156,21 @@ $(printf \
 EOF
 }
 
+_secret_keys_list() {
+  local \
+    _gnupg_home="${1}" \
+    _gpg_opts=()
+  _gpg_opts+=(
+    --homedir
+      "${_gnupg_home}"
+  )
+  GNUPGHOME="${_gnupg_home}" \
+  gpg \
+    "${_gpg_opts[@]}" \
+    --list-secret-keys \
+    "@${wallet_address}"
+}
+
 _evm_gpg() {
   local \
     _wallet_name="${1}" \
@@ -189,11 +210,11 @@ _evm_gpg() {
       "${_key_passphrase}" \
       "${_key_comment}"
   elif [[ "${_target_command}" == "list" ]]; then
-    _secret_key_list \
+    _secret_keys_list \
       "${_gnupg_home}"
   else
     _msg_error \
-      "unknown command '${_target_command}'"
+      "Unknown command '${_target_command}'."
   fi
 }
 
