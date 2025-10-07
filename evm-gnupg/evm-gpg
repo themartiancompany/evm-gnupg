@@ -54,6 +54,7 @@ _global_variables() {
   target_key=""
   target_value=""
   command_args=()
+  cache_dir=""
   color=""
   quiet=""
 }
@@ -215,10 +216,10 @@ _keys_import() {
     rm \
       -rf \
       "${_export_secret}"
-  elif [[ "${_source_import}" == "0x"* && \
-          "${#_source_import}" == "42" ]]; then
-    if [[]]; then
-    fi
+  # elif [[ "${_source_import}" == "0x"* && \
+  #         "${#_source_import}" == "42" ]]; then
+  #   if [[]]; then
+  #   fi
   fi
 }
 
@@ -602,7 +603,7 @@ app_opts=(
   "${gnupg_home}"
   "${key_passphrase}"
   "${key_comment}"
-  "${_cache_dir}"
+  "${cache_dir}"
   "${target_command}"
   "${target_key}"
   "${target_value}"
