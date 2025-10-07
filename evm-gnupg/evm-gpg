@@ -1,6 +1,25 @@
 #!/usr/bin/env bash
-#
+
 # SPDX-License-Identifier: AGPL-3.0-or-later
+
+#    ----------------------------------------------------------------------
+#    Copyright © 2024, 2025  Pellegrino Prevete
+#
+#    All rights reserved
+#    ----------------------------------------------------------------------
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Affero General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
+#
+#    You should have received a copy of the GNU Affero General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 _bin="$( \
   dirname \
@@ -356,7 +375,8 @@ _set_overrides() {
   if [[ "${target_command}" == "new" ]]; then
     if [[ "${target_key}" == "" ]]; then
       _msg=(
-        "You are creating a key without setting an username."
+        "You are creating a key without"
+        "setting an username."
       )
       _msg_error \
         "${_msg[*]}" \
@@ -366,7 +386,8 @@ _set_overrides() {
     fi
     if [[ "${target_value}" == "" ]]; then
       _msg=(
-        "You are creating a key without setting a name."
+        "You are creating a key without"
+        "setting a name."
       )
       _msg_error \
         "${_msg[*]}" \
@@ -376,7 +397,8 @@ _set_overrides() {
     fi
     if [[ "${key_passphrase}" == "" ]]; then
       _msg=(
-        "You are creating a key without a passphrase."
+        "You are creating a key without"
+        "a passphrase."
       )
       _msg_warning \
         "${_msg[*]}"
