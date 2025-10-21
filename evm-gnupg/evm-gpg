@@ -178,6 +178,11 @@ _keys_secret_list() {
       "${_gnupg_home}"
     --list-secret-keys
   )
+  if [[ "${_with_colons}" == "y" ]]; then
+    _gpg_opts+=(
+      --with-colons
+    )
+  fi
   if [[ "${_query}" != "" ]]; then
     _gpg_opts+=(
       "${_query}"
