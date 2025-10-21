@@ -53,6 +53,7 @@ _global_variables() {
   target_command=""
   target_key=""
   target_value=""
+  with_colons=""
   command_args=()
   cache_dir=""
   color=""
@@ -182,6 +183,12 @@ _keys_secret_list() {
       "${_query}"
     )
   fi
+  _msg=(
+    "Running gpg with options"
+    "'${_gpg_opts[*]}'."
+  )
+  _msg_info \
+    "${_msg[*]}"
   GNUPGHOME="${_gnupg_home}" \
   gpg \
     "${_gpg_opts[@]}"
@@ -232,10 +239,11 @@ _evm_gpg() {
     _gnupg_home="${5}" \
     _key_passphrase="${6}" \
     _key_comment="${7}" \
-    _cache_dir="${8}" \
-    _target_command="${9}" \
-    _target_key="${10}" \
-    _target_value="${11}" \
+    _with_colons="${8}" \
+    _cache_dir="${9}" \
+    _target_command="${10}" \
+    _target_key="${11}" \
+    _target_value="${12}" \
     _command_args=() \
     _args=() \
     _address \
@@ -244,7 +252,7 @@ _evm_gpg() {
     _full_name \
     _source_import
   shift \
-    11
+    12
   _command_args+=(
     "$@"
   )
@@ -264,7 +272,7 @@ _evm_gpg() {
       "${_key_passphrase}" \
       "${_key_comment}"
   elif [[ "${_target_command}" == "import" ]]; then
-    _source_import="${target_key}"
+    _source_import="${_target_key}"
     _keys_import \
       "${_source_import}"
   elif [[ "${_target_command}" == "list" ]]; then
@@ -276,7 +284,7 @@ _evm_gpg() {
            "${_wallet_name}" \
            "address")"
     fi
-    _query="${target_key}"
+    _query="${_target_key}"
     if [[ "${_query}" == "" && \
           "${_address}" != "" ]]; then
       _query="@${_address}"
@@ -318,6 +326,51 @@ _gnupg_home_auto_detect() {
     "${_gnupg_home}"
 }
 
+_target_key_check() {
+  local \
+    _msg=()
+  if [[ "${target_key}" == "" ]]; then
+    _msg=(
+      "You are creating a key without"
+      "setting an username."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      0
+    _usage \
+      1
+  fi
+}
+
+_target_value_check() {
+  local \
+    _msg=()
+  if [[ "${target_value}" == "" ]]; then
+    _msg=(
+      "You are creating a key without"
+      "setting a name."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      0
+    _usage \
+      1
+  fi
+}
+
+_key_passphrase_check() {
+  local \
+    _msg=()
+  if [[ "${key_passphrase}" == "" ]]; then
+    _msg=(
+      "You are creating a key without"
+      "a passphrase."
+    )
+    _msg_warning \
+      "${_msg[*]}"
+  fi
+}
+
 _set_overrides() {
   local \
     _msg=() \
@@ -356,6 +409,15 @@ _set_overrides() {
     "evm-wallet" \
     "${wallet_name}" \
     "n" # "${call_auth}"
+  if [[ "${wallet_name}" != "" ]]; then
+    _set_override \
+      "wallet" \
+      "address" \
+      "$(evm-wallet \
+           get \
+             "${wallet_name}" \
+             "address")"
+  fi
   _gnupg_home_auto_detect
   _set_override \
     "target" \
@@ -374,37 +436,14 @@ _set_overrides() {
     "comment" \
     ""
   if [[ "${target_command}" == "new" ]]; then
-    if [[ "${target_key}" == "" ]]; then
-      _msg=(
-        "You are creating a key without"
-        "setting an username."
-      )
-      _msg_error \
-        "${_msg[*]}" \
-        0
-      _usage \
-        1
-    fi
-    if [[ "${target_value}" == "" ]]; then
-      _msg=(
-        "You are creating a key without"
-        "setting a name."
-      )
-      _msg_error \
-        "${_msg[*]}" \
-        0
-      _usage \
-        1
-    fi
-    if [[ "${key_passphrase}" == "" ]]; then
-      _msg=(
-        "You are creating a key without"
-        "a passphrase."
-      )
-      _msg_warning \
-        "${_msg[*]}"
-    fi
+    _target_key_check
+    _target_value_check
+    _key_passphrase_check
   fi
+  _set_override \
+    "with" \
+    "colons" \
+    "n"
 }
 
 # Show help usage, with an exit status.
@@ -449,6 +488,9 @@ Usage:
                             Default: ${key_passphrase}
      -C <comment>           Key comment (for 'new' command).
                             Default: ${key_comment}
+     -Q                     If enabled, pass '--with-colons'
+                            serializing option to GPG.
+                            Default: ${with_colons}
 
   credentials options:
      -N <wallet_name>       Wallet name.
@@ -496,6 +538,7 @@ _show_config() {
   _msg_info "           Target command:   ${target_command}"
   _msg_info "               Target key:   ${target_key}"
   _msg_info "             Target value:   ${target_value}"
+  _msg_info "              With colons:   ${with_colons}"
   _msg_info "          GNUPG directory:   ${gnupg_home}"
   _msg_info "        New key options:"
   _msg_info "           Key passphrase:   ${_passphrase_show:-}"
@@ -517,7 +560,7 @@ _requirements
 getopts_opts="$( \
   printf \
     "%s" \
-    "H:P:C:" \
+    "H:P:C:Q" \
     "t:C:" \
     "$(_libevm_app_getopts_params_get)" \
     "n:" \
@@ -546,6 +589,8 @@ while \
       override_key_passphrase="${OPTARG}" ;;
     C) \
       override_key_comment="${OPTARG}" ;;
+    Q) \
+      override_with_colons="y" ;;
     W) \
       override_cache_dir="${OPTARG}" ;;
     c) \
@@ -603,6 +648,7 @@ app_opts=(
   "${gnupg_home}"
   "${key_passphrase}"
   "${key_comment}"
+  "${with_colons}"
   "${cache_dir}"
   "${target_command}"
   "${target_key}"
