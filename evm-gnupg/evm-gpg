@@ -76,18 +76,6 @@ _get_conf_dir_path() {
     "${_dir}"
 }
 
-<<<<<<< HEAD
-=======
-_secret_keys_list() {
-  local \
-    _gnupg_home="${1}"
-  gpg \
-    --homedir \
-      "${_gnupg_home}" \
-    --list-secret-keys
-}
-
->>>>>>> d5f7e3f455c75e69f75821e75bca505ecedd35ea
 # Generate an OpenPGP key for the input address
 _key_new() {
   local \
@@ -202,13 +190,24 @@ _keys_secret_list() {
     "${_gpg_opts[@]}"
 }
 
+_address_detect() {
+  local \
+    _source_import="${1}"
+  _address=""
+  if [[ "${_source_import}" == "0x"* && \
+        "${#_source_import}" == "42" ]]; then
+    _address="${_source_import}"
+  fi
+}
+
 _keys_import() {
   local \
     _gnupg_home="${1}" \
     _source_import="${2}" \
     _export_opts=() \
     _import_opts=() \
-    _export_secret
+    _export_secret \
+    _address
   if [[ -d "${_source_import}" ]]; then
     _export_secret="${_cache_dir}/secret.asc"
     _export_opts+=(
@@ -231,32 +230,38 @@ _keys_import() {
     rm \
       -rf \
       "${_export_secret}"
-  # elif [[ "${_source_import}" == "0x"* && \
-  #         "${#_source_import}" == "42" ]]; then
-  #   if [[]]; then
-  #   fi
+  else
+    _address_detect \
+      "${_source_import}"
+    if [[ "${_address}" != "" ]]; then
+      echo \
+        "TODO: import keys"
+        "      given address."
+      exit \
+        1
+    fi
   fi
 }
 
-_keys_names_get() {
-  local \
-    _gnupg_home="${1}" \
-    _filter="${2}" \
-    _gpg_out \
-    _gpg_opts=() \
-    _address
-  _gpg_opts+=(
-    --homedir
-      "${_gnupg_home}"
-    --with-colons
-    --list-keys
-    "@${_address}"
-  )
-  # awk \
-  #  -F \
-  #    ":" \
-  #  '{print $1}'
-}
+# _keys_names_get() {
+#   local \
+#     _gnupg_home="${1}" \
+#     _filter="${2}" \
+#     _gpg_out \
+#     _gpg_opts=() \
+#     _address
+#   _gpg_opts+=(
+#     --homedir
+#       "${_gnupg_home}"
+#     --with-colons
+#     --list-keys
+#     "@${_address}"
+#   )
+#   # awk \
+#   #  -F \
+#   #    ":" \
+#   #  '{print $1}'
+# }
 
 _keys_enumerate() {
   local \
