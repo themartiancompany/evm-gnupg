@@ -418,7 +418,8 @@ _evm_gpg() {
     _full_name \
     _source_import \
     _key_type \
-    _out_file
+    _out_file \
+    _output_type
   shift \
     12
   _command_args+=(
@@ -461,6 +462,7 @@ _evm_gpg() {
            "address")"
     fi
     _query="${_target_key}"
+    _output_type="${_target_value}"
     if [[ "${_query}" == "" && \
           "${_address}" != "" ]]; then
       _query="@${_address}"
