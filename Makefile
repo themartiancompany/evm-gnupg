@@ -26,6 +26,7 @@ BIN_DIR=$(DESTDIR)$(PREFIX)/bin
 LIB_DIR=$(DESTDIR)$(PREFIX)/lib/$(_PROJECT)
 MAN_DIR?=$(DESTDIR)$(PREFIX)/share/man
 
+<<<<<<< HEAD
 _INSTALL_FILE=\
   install \
     -vDm644
@@ -42,6 +43,12 @@ DOC_FILES=\
 SCRIPT_FILES=\
   $(wildcard \
       $(_PROJECT)/*)
+=======
+DOC_FILES=\
+  $(wildcard *.rst) \
+  $(wildcard *.md)
+SCRIPT_FILES=$(wildcard $(_PROJECT)/*)
+>>>>>>> d5f7e3f455c75e69f75821e75bca505ecedd35ea
 
 all:
 
@@ -49,11 +56,14 @@ check: shellcheck
 
 shellcheck:
 
+<<<<<<< HEAD
 	shellcheck \
 	  -s \
 	    "bash" \
 	  $(SCRIPT_FILES)
 
+=======
+>>>>>>> d5f7e3f455c75e69f75821e75bca505ecedd35ea
 install: install-scripts install-doc install-man
 
 install-scripts:
@@ -71,7 +81,11 @@ install-doc:
 
 install-man:
 
+<<<<<<< HEAD
 	$(_INSTALL_DIR)
+=======
+	$(_INSTALL_DIR) \
+>>>>>>> d5f7e3f455c75e69f75821e75bca505ecedd35ea
 	  "$(MAN_DIR)/man1"
 	rst2man \
 	  "man/evm-gpg.1.rst" \

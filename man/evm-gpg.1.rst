@@ -21,6 +21,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
+<<<<<<< HEAD
 ===========
 evm-gpg
 ===========
@@ -28,12 +29,22 @@ evm-gpg
 ----------------------------------------------------------------------
 Ethereum Virtual Machine (EVM) compatible GNU Privacy Guard wrapper
 ----------------------------------------------------------------------
+=======
+========
+evm-gpg
+========
+
+-------------------------------------------
+Ethereum Virtual Machine GNU Privacy Guard
+-------------------------------------------
+>>>>>>> d5f7e3f455c75e69f75821e75bca505ecedd35ea
 :Version: evm-gpg |version|
 :Manual section: 1
 
 Synopsis
 ========
 
+<<<<<<< HEAD
 evm-gpg *[options]* *command* *[command_args]*
 
 
@@ -42,10 +53,23 @@ Description
 Ethereum Virtual Machine (EVM) compatible
 networks' cryptocurrency wallet.
 
+=======
+evm-gpg *[options]* *command* *key* *value*
+
+Description
+===========
+
+GNUPG wrapper for use by the Ethereum
+Virtual Machine (EVM) Toolchain.
+
+EVM GNUPG uses EVM Wallet to interface with
+wallets.
+>>>>>>> d5f7e3f455c75e69f75821e75bca505ecedd35ea
 
 Commands
 =========
 
+<<<<<<< HEAD
 * new *username* *full_name*
 
 * export *out-file* *key-type*
@@ -79,14 +103,35 @@ All those supported by
 'evm-chains-info' as
 well as direct RPC addresses.
 
+=======
+* new
+    *username*
+    *full_name*
+
+  Creates a new key for the input
+  wallet.
+
+* list
+
+  List the available signing/encrypting
+  keys in the local database.
+>>>>>>> d5f7e3f455c75e69f75821e75bca505ecedd35ea
 
 Options
 ========
 
+<<<<<<< HEAD
+=======
+-N wallet_name          Wallet name.
+-w wallet_path          Wallet path.
+-p wallet_password      Wallet password.
+-s wallet_seed          Wallet seed path.
+>>>>>>> d5f7e3f455c75e69f75821e75bca505ecedd35ea
 -H gnupg_home           GNUPG home directory
 -P passphrase           Key passphrase (for 'new' command).
 -C comment              Key comment (for 'new' command).
 
+<<<<<<< HEAD
 
 Credentials options
 =====================
@@ -111,6 +156,11 @@ Bugs
 ====
 
 https://github.com/themartiancompany/evm-gnupg/-/issues
+=======
+-h                      Display help message.
+-c                      Enable color output
+-v                      Enable verbose output
+>>>>>>> d5f7e3f455c75e69f75821e75bca505ecedd35ea
 
 Copyright
 =========
@@ -120,9 +170,15 @@ Copyright Pellegrino Prevete. AGPL-3.0.
 See also
 ========
 
+<<<<<<< HEAD
 * evm-wallet
 * evm-contract-call
 * evm-gpg
 * ur
+=======
+* evm-openpgp-key-publish
+* evm-openpgp-key-receive
+* evm-wallet
+>>>>>>> d5f7e3f455c75e69f75821e75bca505ecedd35ea
 
 .. include:: variables.rst
