@@ -48,10 +48,21 @@ Commands
 
 * new *username* *full_name*
 
+* export *out-file* *key-type*
+
 * import *import_source*
 
 * list
 
+
+Export arguments
+=================
+
+*out-file*         File in which to save the
+                   exported key.
+
+*key-type*         It can be 'public' or
+                   'private'.
 
 Import sources
 ===============

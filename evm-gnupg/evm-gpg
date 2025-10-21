@@ -303,6 +303,16 @@ _gpg_export() {
     _export_opt="--export"
   elif [[ "${_key_type}" == "private" ]]; then
     _export_opt="--export-secret-keys"
+  else
+    _msg=(
+      "Unknown key export type"
+      "'${_key_type}'."
+      "Valid values are 'public'"
+      "and 'private'."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
   fi
   _gpg_opts+=(
     "${_export_opt}"
