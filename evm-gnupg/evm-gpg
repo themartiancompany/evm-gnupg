@@ -568,42 +568,9 @@ _set_overrides() {
     "date" \
     "$(_get_date_human)"
   _set_override \
-<<<<<<< HEAD
     "cache" \
     "dir" \
     "${HOME}/.cache/${app_name}"
-=======
-    "wallet" \
-    "name" \
-    "default"
-  _set_override \
-    "wallet" \
-    "path" \
-    "$(_wallet_path_get \
-         "evm-wallet" \
-         "${wallet_name}")"
-  _secret_auto_detect \
-    "seed" \
-    "seed" \
-    "evm-wallet" \
-    "${wallet_name}"
-  _secret_auto_detect \
-    "password" \
-    "plain" \
-    "evm-wallet" \
-    "${wallet_name}"
-  _set_override \
-    "wallet" \
-    "address" \
-    "$(evm-wallet \
-         get \
-           "${wallet_name}" \
-           "address")"
-  _set_override \
-    "gnupg" \
-    "home" \
-    "$(_get_conf_dir_path)"
->>>>>>> d5f7e3f455c75e69f75821e75bca505ecedd35ea
   _set_override \
     "target" \
     "command" \
@@ -647,42 +614,9 @@ _set_overrides() {
     "comment" \
     ""
   if [[ "${target_command}" == "new" ]]; then
-<<<<<<< HEAD
     _target_key_check
     _target_value_check
     _key_passphrase_check
-=======
-    if [[ "${target_key}" == "" ]]; then
-      _msg=(
-        "You are creating a key without"
-        "setting an username."
-      )
-      _msg_error \
-        "${_msg[*]}" \
-        0
-      _usage \
-        1
-    fi
-    if [[ "${target_value}" == "" ]]; then
-      _msg=(
-        "You are creating a key without"
-        "setting a name."
-      )
-      _msg_error \
-        "${_msg[*]}" \
-        0
-      _usage \
-        1
-    fi
-    if [[ "${key_passphrase}" == "" ]]; then
-      _msg=(
-        "You are creating a key without"
-        "a passphrase."
-      )
-      _msg_warning \
-        "${_msg[*]}"
-    fi
->>>>>>> d5f7e3f455c75e69f75821e75bca505ecedd35ea
   fi
   _set_override \
     "with" \
@@ -733,24 +667,12 @@ Usage:
     private 
 
   options:
-<<<<<<< HEAD
-=======
-     -N <wallet_name>       Wallet name.
-                            Default: ${wallet_name}
-     -w <wallet_path>       Wallet path.
-                            Default: ${wallet_path}
-     -p <wallet_password>   Wallet password.
-                            Default: ${wallet_password}
-     -s <wallet_seed>       Wallet seed path.
-                            Default: ${wallet_seed}
->>>>>>> d5f7e3f455c75e69f75821e75bca505ecedd35ea
      -H <gnupg_home>        GNUPG home directory
                             Default: ${gnupg_home}
      -P <passphrase>        Key passphrase (for 'new' command).
                             Default: ${key_passphrase}
      -C <comment>           Key comment (for 'new' command).
                             Default: ${key_comment}
-<<<<<<< HEAD
      -Q                     If enabled, pass '--with-colons'
                             serializing option to GPG.
                             Default: ${with_colons}
@@ -764,8 +686,6 @@ Usage:
                             Default: ${wallet_password}
      -s <wallet_seed>       Wallet seed path.
                             Default: ${wallet_seed}
-=======
->>>>>>> d5f7e3f455c75e69f75821e75bca505ecedd35ea
 
      -h                     This message.
      -c                     Enable color output
@@ -800,7 +720,6 @@ _show_config() {
   fi
   _msg_info "${app_name} configuration"
   _msg_info "                Call date:   ${call_date}"
-<<<<<<< HEAD
   _msg_info "           Target command:   ${target_command}"
   _msg_info "               Target key:   ${target_key}"
   _msg_info "             Target value:   ${target_value}"
@@ -817,19 +736,6 @@ _show_config() {
   _msg_info "              Wallet seed:   ${wallet_seed}"
   _msg_info "    Application options:"
   _msg_info "          Cache directory:   ${cache_dir}"
-=======
-  _msg_info "           Wallet address:   ${wallet_address}"
-  _msg_info "              Wallet name:   ${wallet_name}"
-  _msg_info "              Wallet path:   ${wallet_path}"
-  _msg_info "          Wallet password:   ${wallet_password}"
-  _msg_info "              Wallet seed:   ${wallet_seed}"
-  _msg_info "          GNUPG directory:   ${gnupg_home}"
-  _msg_info "           Key passphrase:   ${_passphrase_show}"
-  _msg_info "              Key comment:   ${key_comment}"
-  _msg_info "           Target command:   ${target_command}"
-  _msg_info "               Target key:   ${target_key}"
-  _msg_info "             Target value:   ${target_value}"
->>>>>>> d5f7e3f455c75e69f75821e75bca505ecedd35ea
 }
 
 _globals
@@ -927,18 +833,12 @@ app_opts=(
   "${gnupg_home}"
   "${key_passphrase}"
   "${key_comment}"
-<<<<<<< HEAD
   "${with_colons}"
   "${cache_dir}"
   "${target_command}"
   "${target_key}"
   "${target_value}"
   "${command_args[@]}"
-=======
-  "${target_command}"
-  "${target_key}"
-  "${target_value}"
->>>>>>> d5f7e3f455c75e69f75821e75bca505ecedd35ea
 )
 _evm_gpg \
   "${app_opts[@]}"

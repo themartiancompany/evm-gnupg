@@ -21,7 +21,6 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-<<<<<<< HEAD
 ===========
 evm-gpg
 ===========
@@ -29,32 +28,14 @@ evm-gpg
 ----------------------------------------------------------------------
 Ethereum Virtual Machine (EVM) compatible GNU Privacy Guard wrapper
 ----------------------------------------------------------------------
-=======
-========
-evm-gpg
-========
-
--------------------------------------------
-Ethereum Virtual Machine GNU Privacy Guard
--------------------------------------------
->>>>>>> d5f7e3f455c75e69f75821e75bca505ecedd35ea
 :Version: evm-gpg |version|
 :Manual section: 1
 
 Synopsis
 ========
 
-<<<<<<< HEAD
 evm-gpg *[options]* *command* *[command_args]*
 
-
-Description
-===========
-Ethereum Virtual Machine (EVM) compatible
-networks' cryptocurrency wallet.
-
-=======
-evm-gpg *[options]* *command* *key* *value*
 
 Description
 ===========
@@ -64,36 +45,54 @@ Virtual Machine (EVM) Toolchain.
 
 EVM GNUPG uses EVM Wallet to interface with
 wallets.
->>>>>>> d5f7e3f455c75e69f75821e75bca505ecedd35ea
 
 Commands
-=========
+==========
 
-<<<<<<< HEAD
 * new *username* *full_name*
+
+  Creates a new key for the input
+  wallet.
 
 * export *out-file* *key-type*
 
-* import *import_source*
+  Exports the key corresponding to
+  the wallet.
 
-* list
+* import *import-source*
+
+  Import a key from an input source.
+
+* list *output-type*
+ 
+  List the available signing/encrypting
+  keys in the local database.
 
 
 Export arguments
 =================
 
-*out-file*         File in which to save the
-                   exported key.
+ *out-file*         File in which to save the
+                    exported key.
 
-*key-type*         It can be 'public' or
-                   'private'.
+ *key-type*         It can be 'public' or
+                    'private'.
 
-Import sources
-===============
 
-* directory
-* fingerprint
-* file
+Import arguments
+==================
+
+ *input-source*     It can be one between
+                    * a directory;
+                    * a key fingerprint;
+                    * a file.
+
+List arguments
+==================
+
+ *output-type*     It can be either empty
+                   or 'fingerprint' or
+                   'name' or 'email'.
 
 
 Networks
@@ -103,35 +102,13 @@ All those supported by
 'evm-chains-info' as
 well as direct RPC addresses.
 
-=======
-* new
-    *username*
-    *full_name*
-
-  Creates a new key for the input
-  wallet.
-
-* list
-
-  List the available signing/encrypting
-  keys in the local database.
->>>>>>> d5f7e3f455c75e69f75821e75bca505ecedd35ea
 
 Options
 ========
 
-<<<<<<< HEAD
-=======
--N wallet_name          Wallet name.
--w wallet_path          Wallet path.
--p wallet_password      Wallet password.
--s wallet_seed          Wallet seed path.
->>>>>>> d5f7e3f455c75e69f75821e75bca505ecedd35ea
 -H gnupg_home           GNUPG home directory
 -P passphrase           Key passphrase (for 'new' command).
 -C comment              Key comment (for 'new' command).
-
-<<<<<<< HEAD
 
 Credentials options
 =====================
@@ -156,11 +133,6 @@ Bugs
 ====
 
 https://github.com/themartiancompany/evm-gnupg/-/issues
-=======
--h                      Display help message.
--c                      Enable color output
--v                      Enable verbose output
->>>>>>> d5f7e3f455c75e69f75821e75bca505ecedd35ea
 
 Copyright
 =========
@@ -170,15 +142,9 @@ Copyright Pellegrino Prevete. AGPL-3.0.
 See also
 ========
 
-<<<<<<< HEAD
-* evm-wallet
-* evm-contract-call
-* evm-gpg
-* ur
-=======
 * evm-openpgp-key-publish
 * evm-openpgp-key-receive
 * evm-wallet
->>>>>>> d5f7e3f455c75e69f75821e75bca505ecedd35ea
+* evm-contract-call
 
 .. include:: variables.rst
