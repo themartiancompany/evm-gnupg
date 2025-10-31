@@ -106,16 +106,33 @@ well as direct RPC addresses.
 Options
 ========
 
--H gnupg_home           GNUPG home directory
+-H gnupg-home           GNUPG home directory
+-Q                      If enabled, passes the *--with-colons*
+                        serializing option to GPG.
+-o output-type          Key comment (for 'new' command).
+
+
+Key creation options
+=========================
+
 -P passphrase           Key passphrase (for 'new' command).
 -C comment              Key comment (for 'new' command).
+
+
+Receive options
+=================
+
+-i input-type           It can be 'auto', 'address',
+                        'contact'.
+
 
 Credentials options
 =====================
 
--w wallet_path          Wallet path.
--p wallet_password      Wallet password.
--s wallet_seed          Wallet seed path.
+-N wallet_name          Wallet name.
+-w wallet-path          Wallet path.
+-p wallet-password      Wallet password.
+-s wallet-seed          Wallet seed path.
 
 
 LibEVM options

@@ -21,23 +21,22 @@
 #    You should have received a copy of the GNU Affero General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-_bin="$( \
+_bin="$(
   dirname \
-    "$( \
-      command \
-        -v \
-	  "env")")"
-_lib="$( \
+    "$(command \
+         -v \
+         "env")")"
+_lib="$(
   realpath \
     "${_bin}/../lib")"
-_crash_bash="${_lib}/libcrash-bash/crash-bash"
-_libevm="${_lib}/libevm/libevm"
-_sourced \
-  "${_crash_bash}" 2>/dev/null || \
-  source \
+  _crash_bash="${_lib}/libcrash-bash/crash-bash"
+  _libevm="${_lib}/libevm/libevm"
+  _sourced \
+    "${_crash_bash}" 2>/dev/null || \
+    source \
     "${_crash_bash}"
-_sourced \
-  "${_libevm}"
+  _sourced \
+    "${_libevm}"
 
 # shellcheck disable=SC2034
 _global_variables() {
@@ -48,7 +47,10 @@ _global_variables() {
   wallet_seed=""
   wallet_address=""
   gnupg_home=""
+  input_type=""
+  output_type=""
   key_passphrase=""
+  key_type=""
   key_comment=""
   target_command=""
   target_key=""
@@ -66,7 +68,7 @@ _requirements() {
   libevm-requirements
   _check_cmd \
     'evm-wallet'
-}
+  }
 
 _get_conf_dir_path() {
   local \
@@ -74,7 +76,7 @@ _get_conf_dir_path() {
   _dir="${HOME}/.config/evm-gnupg"
   echo \
     "${_dir}"
-}
+  }
 
 # Generate an OpenPGP key for the input address
 _key_new() {
@@ -85,11 +87,11 @@ _key_new() {
     _passphrase="${4}" \
     _comment="${5}" \
     _gpg_conf_array=() \
-    _gpg_generate_array=() \
-    _gpg_opts=()
+      _gpg_generate_array=() \
+        _gpg_opts=()
   _gpg_opts+=(
     --homedir
-      "${_gnupg_home}"
+    "${_gnupg_home}"
     --gen-key
   )
   _gpg_conf_array+=(
@@ -151,8 +153,8 @@ $(printf \
     '%s\n' \
     "${_gpg_conf_array[@]}")
 __EOF__
-  gpg \
-    "${_gpg_opts[@]}" <<EOF
+gpg \
+  "${_gpg_opts[@]}" <<EOF
 $(printf \
     '%s\n' \
     "${_gpg_generate_array[@]}")
@@ -162,13 +164,25 @@ EOF
 _keys_secret_list() {
   local \
     _gnupg_home="${1}" \
-    _query="${2}" \
-    _gpg_opts=()
+    _output_type="${2}" \
+    _query="${3}" \
+    _gpg_opts=() \
+    _out \
+    _secret
+  _secret="${_cache_dir}/secret.asc"
   _gpg_opts+=(
     --homedir
-      "${_gnupg_home}"
-    --list-secret-keys
+    "${_gnupg_home}"
   )
+  _msg=(
+    "Running gpg with options"
+    "'${_gpg_opts[*]}'."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  if [[ "${_output_type}" == "fingerprint" ]]; then
+    _with_colons="y"
+  fi
   if [[ "${_with_colons}" == "y" ]]; then
     _gpg_opts+=(
       --with-colons
@@ -179,15 +193,23 @@ _keys_secret_list() {
       "${_query}"
     )
   fi
-  _msg=(
-    "Running gpg with options"
-    "'${_gpg_opts[*]}'."
-  )
-  _msg_info \
-    "${_msg[*]}"
-  GNUPGHOME="${_gnupg_home}" \
-  gpg \
-    "${_gpg_opts[@]}"
+  if [[ "${_output_type}" == "" ]]; then
+    _gpg_opts+=(
+      --list-secret-keys
+    )
+    _out="$(
+      GNUPGHOME="${_gnupg_home}" \
+      gpg \
+        "${_gpg_opts[@]}")"
+  elif [[ "${_output_type}" == "fingerprint" ]]; then
+    if [[]]; then
+    fi
+    _gpg_opts+=(
+    )
+    echo
+  fi
+  echo \
+    "${_out}"
 }
 
 _address_detect() {
@@ -234,9 +256,11 @@ _keys_import() {
     _address_detect \
       "${_source_import}"
     if [[ "${_address}" != "" ]]; then
-      echo \
-        "TODO: import keys"
-        "      given address."
+      printf \
+        '%s\n' \
+        "TODO:" \
+        "  import keys" \
+        "  given address."
       exit \
         1
     fi
@@ -276,7 +300,7 @@ _keys_enumerate() {
     --list-keys
     "@${_address}"
   )
-  _keys_amount="$( \
+  _keys_amount="$(
     gpg \
       "${_gpg_opts[@]}" | \
       grep \
@@ -331,7 +355,7 @@ _gpg_export() {
     gpg \
       "${_gpg_opts[@]}"
   elif [[ "${_out_file}" != "" ]]; then
-    _out_dir="$( \
+    _out_dir="$(
       dirname \
         "${_out_file}")"
     if [[ ! -d "${_out_dir}" ]]; then
@@ -361,7 +385,7 @@ _keys_export() {
     _export_secret \
     _keys_amount \
     _address
-  _address="$( \
+  _address="$(
     evm-wallet \
       get \
         "${_wallet_name}" \
@@ -395,6 +419,63 @@ _keys_export() {
     "@${_address}"
 }
 
+_keys_dir() {
+  local \
+    _data_dir=
+  _data_dir="${HOME}/.local/share/${app_name}"
+  _keys_dir="${_data_dir}/${}"
+}
+
+_keys_receive() {
+  local \
+    _contact_name \
+    _evm_openpgp_key_receive_opts=() \
+    _receive_input_type \
+    _keys_dir \
+    _key \
+    _address
+  _address="${_target_key}"
+  # _keys_dir=""
+  if [[ "${quiet}" == "n" ]]; then
+    _evm_openpgp_key_receive_opts+=(
+      -v
+    )
+  fi
+  if [[ "${_input_type}" == "address" ]]; then
+    _receive_input_type="number"
+  elif [[ "${_input_type}" == "fingerprint" ]]; then
+    _receive_input_type="fingerprint"
+    _address="$(
+      evm-wallet \
+        get \
+        "${_wallet_name}" \
+        "address")"
+  elif [[ "${_input_type}" == "contact" ]]; then
+    _receive_input_type="number"
+    _contact_name="${_target_key}"
+    _key="$(
+      evm-wallet \
+        get \
+        "${_contact_name}" \
+        "address")"
+  fi
+  _keys_dir="${HOME}/.local/share/${app_name}/"
+  _evm_openpgp_key_receive_opts+=(
+    -H
+      "${_gnupg_home}"
+    -t
+      "${_receive_input_type}"
+    -f
+      "n"
+    -P
+      "${_key}"
+    # -o
+    #   "${_keys_dir}"
+  )
+  evm-openpgp-key-receive \
+    "${_evm_openpgp_key_receive_opts[@]}" \
+    "${_key}"
+}
 
 _evm_gpg() {
   local \
@@ -406,10 +487,13 @@ _evm_gpg() {
     _key_passphrase="${6}" \
     _key_comment="${7}" \
     _with_colons="${8}" \
-    _cache_dir="${9}" \
-    _target_command="${10}" \
-    _target_key="${11}" \
-    _target_value="${12}" \
+    _input_type="${9}" \
+    _output_type="${10}" \
+    _key_type="${11}" \
+    _cache_dir="${12}" \
+    _target_command="${13}" \
+    _target_key="${14}" \
+    _target_value="${15}" \
     _command_args=() \
     _args=() \
     _address \
@@ -421,12 +505,12 @@ _evm_gpg() {
     _out_file \
     _output_type
   shift \
-    12
+    15
   _command_args+=(
     "$@"
   )
   if [[ "${_target_command}" == "new" ]]; then
-    _address="$( \
+    _address="$(
       evm-wallet \
        get \
          "${_wallet_name}" \
@@ -455,21 +539,24 @@ _evm_gpg() {
   elif [[ "${_target_command}" == "list" ]]; then
     _address=""
     if [[ "${_wallet_name}" != "" ]]; then
-      _address="$( \
+      _address="$(
         evm-wallet \
          get \
            "${_wallet_name}" \
            "address")"
     fi
     _query="${_target_key}"
-    _output_type="${_target_value}"
+    # _output_type="${_target_value}"
     if [[ "${_query}" == "" && \
           "${_address}" != "" ]]; then
       _query="@${_address}"
     fi
     _keys_secret_list \
       "${_gnupg_home}" \
+      "${_output_type}" \
       "${_query}"
+  elif [[ "${_target_command}" == "receive" ]]; then
+    _keys_receive
   else
     _msg=(
       "Unknown command '${_target_command}'."
@@ -485,7 +572,7 @@ _gnupg_home_auto_detect() {
     _gnupg_home \
     _gnupg_home_default
   _gnupg_home=""
-  _gnupg_home_default="$( \
+  _gnupg_home_default="$(
     _get_conf_dir_path)"
   if [[ ! -v "override_gnupg_home" ]]; then
     if [[ ! -d "${_gnupg_home}" ]]; then
@@ -506,12 +593,29 @@ _gnupg_home_auto_detect() {
 
 _target_key_check() {
   local \
-    _msg=()
-  if [[ "${target_key}" == "" ]]; then
-    _msg=(
-      "You are creating a key without"
-      "setting an username."
-    )
+    _msg=() \
+    _flag
+  _flag="false"
+  if [[ "${target_command}" == "new" ]]; then
+    if [[ "${target_key}" == "" ]]; then
+      _flag="true"
+      _msg=(
+        "You are creating a key without"
+        "setting an username."
+      )
+    fi
+  elif [[ "${target_command}" == "receive" ]]; then
+    if [[ "${target_key}" == "" ]]; then
+      _flag="true"
+      _msg=(
+        "You need to specify either"
+        "an address or a contact name"
+        "of which to retrieve the"
+        "OpenPGP keys."
+      )
+    fi
+  fi
+  if [[ "${_flag}" == "true" ]]; then
     _msg_error \
       "${_msg[*]}" \
       0
@@ -547,6 +651,69 @@ _key_passphrase_check() {
     _msg_warning \
       "${_msg[*]}"
   fi
+}
+
+_contact_sanity_check() {
+  local \
+    _target_contact="${1}" \
+    _evm_wallet_opts=() \
+    _contacts_names=() \
+    _contacts_string \
+    _contact
+  _contact_assert="false"
+  _evm_wallet_opts+=(
+    -o
+      "name"
+  )
+  _contacts_string="$(
+    evm-wallet \
+      "${_evm_wallet_opts[@]}" \
+      list)"
+  IFS='\n' \
+  read \
+    -ra \
+    _contacts_names <<< "${_contacts_string}"
+  for _contact in "${_contacts_names[@]}"; do
+    if [[ "${_contact}" == "${_target_contact}" ]]; then
+      _contact_assert="true"
+      break
+    fi
+  done
+}
+
+_input_type_auto_detect() {
+  local \
+    _contact_assert \
+    _address_assert \
+    _input_type
+  _input_type=""
+  if [[ "${target_command}" == "receive" ]]; then
+    _address_assert="$(
+      _address_sanity_check \
+        "${target_key}" \
+        "0")"
+    if [[ "${_address_assert}" == "" ]]; then
+      _input_type="address"
+    elif [[ "${_address_assert}" != "" ]]; then
+      _contact_sanity_check \
+        "${target_value}"
+      if [[ "${_contact_assert}" == "true" ]]; then
+        _input_type="contact"
+      else
+        _msg=(
+          "Input is not a wallet address,"
+          "assuming it is a key fingerprint."
+        )
+        _msg_info \
+          "${_msg[*]}"
+        _input_type="fingerprint"
+      fi
+    fi
+  fi
+  _set_override \
+    "input" \
+    "type" \
+    "${_input_type}"
 }
 
 _set_overrides() {
@@ -613,8 +780,12 @@ _set_overrides() {
     "key" \
     "comment" \
     ""
+  _set_override \
+    "key" \
+    "type" \
+    "public"
+  _target_key_check
   if [[ "${target_command}" == "new" ]]; then
-    _target_key_check
     _target_value_check
     _key_passphrase_check
   fi
@@ -622,6 +793,11 @@ _set_overrides() {
     "with" \
     "colons" \
     "n"
+  _set_override \
+    "output" \
+    "type" \
+    ""
+  _input_type_auto_detect
 }
 
 # Show help usage, with an exit status.
@@ -648,43 +824,64 @@ Usage:
   commands:
     new
       <username>
-      <full_name>
+      <full-name>
     list
-      (<output_type>)
+      (<filter>)
     import
-      <import_source>
+      <import-source>
     export
-      <out_file>
-      (<key_type>)
+      <out-file>
+    receive
+      <address>      or <fingerprint>
+      (<key-number>)
+
+  list args:
+    filter
 
   import sources:
-    directory
-    fingerprint
-    file
+    directory               GNUPG home directory
+                            from which to import the key.
+    fingerprint             A key fingerprint.
+    file                    A key file.
 
   key type:
     public
     private 
 
   options:
-     -H <gnupg_home>        GNUPG home directory
+     -H <gnupg-home>        GNUPG home directory
                             Default: ${gnupg_home}
+     -t <key-type>          It can be empty, 'fingerprint'
+                            'name' or 'email'.
+                            Default: ${key_type}
+     -Q                     If enabled, passes the '--with-colons'
+                            serializing option to GPG.
+                            Default: ${with_colons}
+
+  key creation options:
      -P <passphrase>        Key passphrase (for 'new' command).
                             Default: ${key_passphrase}
      -C <comment>           Key comment (for 'new' command).
                             Default: ${key_comment}
-     -Q                     If enabled, pass '--with-colons'
-                            serializing option to GPG.
-                            Default: ${with_colons}
+
+  list options:
+     -o <output-type>       It can be empty, 'fingerprint',
+                            'name' or 'email'.
+                            Default: ${output_type}
+
+  receive options:
+     -i <input-type>        It can be 'auto', 'address',
+                            'contact'.
+                            Default: ${input_type}
 
   credentials options:
-     -N <wallet_name>       Wallet name.
+     -N <wallet-name>       Wallet name.
                             Default: ${wallet_name}
-     -w <wallet_path>       Wallet path.
+     -w <wallet-path>       Wallet path.
                             Default: ${wallet_path}
-     -p <wallet_password>   Wallet password.
+     -p <wallet-password>   Wallet password.
                             Default: ${wallet_password}
-     -s <wallet_seed>       Wallet seed path.
+     -s <wallet-seed>       Wallet seed path.
                             Default: ${wallet_seed}
 
      -h                     This message.
@@ -723,6 +920,8 @@ _show_config() {
   _msg_info "           Target command:   ${target_command}"
   _msg_info "               Target key:   ${target_key}"
   _msg_info "             Target value:   ${target_value}"
+  _msg_info "               Input type:   ${input_type}"
+  _msg_info "              Output type:   ${gnupg_home}"
   _msg_info "              With colons:   ${with_colons}"
   _msg_info "          GNUPG directory:   ${gnupg_home}"
   _msg_info "        New key options:"
@@ -742,11 +941,11 @@ _globals
 _global_variables
 _libevm_global_variables
 _requirements
-getopts_opts="$( \
+getopts_opts="$(
   printf \
     "%s" \
-    "H:P:C:Q" \
-    "t:C:" \
+    "H:P:C:Qo:" \
+    "C:" \
     "$(_libevm_app_getopts_params_get)" \
     "n:" \
     "$(_wallet_getopts_params_get)" \
@@ -760,36 +959,43 @@ while \
   _libevm_app_getopts_case
   case \
     "${arg}" in
-    N) \
+    N)
       override_wallet_name="${OPTARG}" ;;
-    w) \
+    w)
       override_wallet_path="${OPTARG}" ;;
-    p) \
+    p)
       override_wallet_password="${OPTARG}" ;;
-    s) \
+    s)
       override_wallet_seed="${OPTARG}" ;;
-    H) \
+    H)
       override_gnupg_home="${OPTARG}" ;;
-    P) \
+    P)
       override_key_passphrase="${OPTARG}" ;;
-    C) \
+    C)
       override_key_comment="${OPTARG}" ;;
-    Q) \
+    Q)
       override_with_colons="y" ;;
-    W) \
+    t)
+      override_key_type="${OPTARG}" ;;
+    o)
+      override_output_type="${OPTARG}" ;;
+    W)
       override_cache_dir="${OPTARG}" ;;
-    c) \
+    c)
       override_color="y" ;;
-    v) \
+    v)
       override_quiet="n" ;;
-    h) \
+    h)
       _set_overrides && \
          _usage \
            0 ;;
-    *) \
+    *)
       if [[ " ${getopts_opts} " != *"${arg}"* ]]; then
+        _msg=(
+          "Invalid argument '${arg}'."
+        )
         _msg_error \
-          "Invalid argument '${arg}'." \
+          "${_msg[*]}" \
           0
         _usage \
           1
@@ -801,20 +1007,23 @@ shift \
     OPTIND - 1 \
   ))
 if (( $# < 1 )); then
+  _msg=(
+    "No command given."
+  )
   _msg_error \
-    "No command given." \
+    "${_msg[*]}" \
     0
   _set_overrides
   _usage \
     1
 fi
-if (( 0 < $# )); then
+if (( 0 < "${#}" )); then
   target_command="${1}"
 fi
-if (( 1 < $# )); then
+if (( 1 < "${#}" )); then
   target_key="${2}"
 fi
-if (( 2 < $# )); then
+if (( 2 < "${#}" )); then
   target_value="${3}"
 fi
 shift \
@@ -834,6 +1043,9 @@ app_opts=(
   "${key_passphrase}"
   "${key_comment}"
   "${with_colons}"
+  "${input_type}"
+  "${output_type}"
+  "${key_type}"
   "${cache_dir}"
   "${target_command}"
   "${target_key}"
