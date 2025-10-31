@@ -167,19 +167,20 @@ _keys_secret_list() {
     _output_type="${2}" \
     _query="${3}" \
     _gpg_opts=() \
+    _gpg_key_info_opts=() \
+    _list \
     _out \
-    _secret
-  _secret="${_cache_dir}/secret.asc"
+    _key
+  if [[ "${quiet}" == "n" ]]; then
+    _gpg_key_info_opts+=(
+      -v
+    )
+  fi
+  _key="${_cache_dir}/key.asc"
   _gpg_opts+=(
     --homedir
     "${_gnupg_home}"
   )
-  _msg=(
-    "Running gpg with options"
-    "'${_gpg_opts[*]}'."
-  )
-  _msg_info \
-    "${_msg[*]}"
   if [[ "${_output_type}" == "fingerprint" ]]; then
     _with_colons="y"
   fi
@@ -188,28 +189,70 @@ _keys_secret_list() {
       --with-colons
     )
   fi
-  if [[ "${_query}" != "" ]]; then
-    _gpg_opts+=(
-      "${_query}"
-    )
-  fi
   if [[ "${_output_type}" == "" ]]; then
-    _gpg_opts+=(
-      --list-secret-keys
-    )
-    _out="$(
-      GNUPGHOME="${_gnupg_home}" \
-      gpg \
-        "${_gpg_opts[@]}")"
-  elif [[ "${_output_type}" == "fingerprint" ]]; then
-    if [[]]; then
+    if [[ "${_key_type}" == "public" ]]; then
+      _list="--list-keys"
+    elif [[ "${_key_type}" == "private" ]]; then
+      _list="--list-secret-keys"
     fi
     _gpg_opts+=(
+      "${_list}"
     )
-    echo
+    if [[ "${_query}" != "" ]]; then
+      _gpg_opts+=(
+        "${_query}"
+      )
+    fi
+    _msg=(
+      "Running gpg with options"
+      "'${_gpg_opts[*]}'."
+    )
+    _msg_info \
+    "${_msg[*]}"
+    GNUPGHOME="${_gnupg_home}" \
+    gpg \
+      "${_gpg_opts[@]}"
+  else
+    if [[ "${_key_type}" == "public" ]]; then
+      _export="--export"
+    elif [[ "${_key_type}" == "private" ]]; then
+      _export="--export-secret-keys"
+    fi
+    _gpg_opts+=(
+      "${_export}"
+      --armor
+    )
+    if [[ "${_query}" != "" ]]; then
+      _gpg_opts+=(
+        "${_query}"
+      )
+    fi
+    _msg=(
+      "Running gpg with options"
+      "'${_gpg_opts[*]}'."
+    )
+    _msg_info \
+      "${_msg[*]}"
+    GNUPGHOME="${_gnupg_home}" \
+    gpg \
+      "${_gpg_opts[@]}" > \
+      "${_key}"
+    _gpg_key_info_opts+=(
+      -t
+        "${_key_type}"
+      -o
+        "${_output_type}"
+    )
+    _msg=(
+      "Running gpg-key-info with options"
+      "'${_gpg_key_info_opts[*]}'."
+    )
+    _msg_info \
+      "${_msg[*]}"
+    gpg-key-info \
+      "${_gpg_key_info_opts[@]}" \
+      "${_key}"
   fi
-  echo \
-    "${_out}"
 }
 
 _address_detect() {
@@ -501,7 +544,6 @@ _evm_gpg() {
     _email \
     _full_name \
     _source_import \
-    _key_type \
     _out_file \
     _output_type
   shift \
@@ -526,7 +568,6 @@ _evm_gpg() {
       "${_key_comment}"
   elif [[ "${_target_command}" == "export" ]]; then
     _out_file="${_target_key}"
-    _key_type="${_target_value}"
     _keys_export \
       "${_gnupg_home}" \
       "${_wallet_name}" \
@@ -716,6 +757,26 @@ _input_type_auto_detect() {
     "${_input_type}"
 }
 
+_cache_dir_auto_detect() {
+  local \
+    _dir
+  _dir="${HOME}/.cache/${app_name}"
+  if [[ ! -v "override_cache_dir" ]]; then
+    if [[ ! -d "${_dir}" ]]; then
+      mkdir \
+        -p \
+        "${_dir}"
+      chmod \
+        700 \
+        "${_dir}"
+    fi
+  fi
+  _set_override \
+    "cache" \
+    "dir" \
+    "${_dir}"
+}
+
 _set_overrides() {
   local \
     _msg=() \
@@ -734,10 +795,7 @@ _set_overrides() {
     "call" \
     "date" \
     "$(_get_date_human)"
-  _set_override \
-    "cache" \
-    "dir" \
-    "${HOME}/.cache/${app_name}"
+  _cache_dir_auto_detect
   _set_override \
     "target" \
     "command" \
@@ -921,7 +979,7 @@ _show_config() {
   _msg_info "               Target key:   ${target_key}"
   _msg_info "             Target value:   ${target_value}"
   _msg_info "               Input type:   ${input_type}"
-  _msg_info "              Output type:   ${gnupg_home}"
+  _msg_info "              Output type:   ${output_type}"
   _msg_info "              With colons:   ${with_colons}"
   _msg_info "          GNUPG directory:   ${gnupg_home}"
   _msg_info "        New key options:"
