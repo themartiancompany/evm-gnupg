@@ -257,11 +257,16 @@ _keys_secret_list() {
 
 _address_detect() {
   local \
-    _source_import="${1}"
-  _address=""
-  if [[ "${_source_import}" == "0x"* && \
-        "${#_source_import}" == "42" ]]; then
-    _address="${_source_import}"
+    _address="${1}"
+  if (( 42 == "${_address}" && \
+        "${_address}" == "0x"* )); then
+    _msg=(
+      "Detected address type."
+    )
+    _msg_info \
+      "${_msg[*]}"
+    _address_sanity_check \
+      "${_address}"
   fi
 }
 
@@ -298,14 +303,15 @@ _keys_import() {
   else
     _address_detect \
       "${_source_import}"
-    if [[ "${_address}" != "" ]]; then
-      printf \
-        '%s\n' \
-        "TODO:" \
-        "  import keys" \
-        "  given address."
-      exit \
-        1
+    if [[ "${_source_import}" != "" ]]; then
+      _msg=(
+        "Retrieving key from EVM"
+        "OpenPGP Key Server."
+      )
+      _msg_info \
+        "${_msg[*]}"
+      _keys_receive \
+        "${_source_import}"
     fi
   fi
 }
@@ -471,13 +477,13 @@ _keys_dir() {
 
 _keys_receive() {
   local \
+    _address="${1}" \
     _contact_name \
     _evm_openpgp_key_receive_opts=() \
     _receive_input_type \
     _keys_dir \
     _key \
     _address
-  _address="${_target_key}"
   # _keys_dir=""
   if [[ "${quiet}" == "n" ]]; then
     _evm_openpgp_key_receive_opts+=(
@@ -520,6 +526,28 @@ _keys_receive() {
     "${_key}"
 }
 
+_output_type_check() {
+  local \
+    _output_types=()
+  _output_types+=(
+    "email"
+    "fingerprint"
+    "name"
+  )
+  if [[ " ${_output_types[*]} " != *" ${_output_type} "* ]]; then
+    _msg=(
+      "Unknown output type"
+      "'${_output_type}'."
+      "Valid types are"
+      "'email', 'fingeprint'"
+      "and 'name'."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+}
+
 _evm_gpg() {
   local \
     _wallet_name="${1}" \
@@ -551,6 +579,7 @@ _evm_gpg() {
   _command_args+=(
     "$@"
   )
+  _output_type_check
   if [[ "${_target_command}" == "new" ]]; then
     _address="$(
       evm-wallet \
@@ -597,7 +626,9 @@ _evm_gpg() {
       "${_output_type}" \
       "${_query}"
   elif [[ "${_target_command}" == "receive" ]]; then
-    _keys_receive
+    _address="${_target_key}"
+    _keys_receive \
+      "${_address}"
   else
     _msg=(
       "Unknown command '${_target_command}'."
