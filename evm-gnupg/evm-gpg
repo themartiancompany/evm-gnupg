@@ -168,14 +168,10 @@ _keys_secret_list() {
     _query="${3}" \
     _gpg_opts=() \
     _gpg_key_info_opts=() \
+    _gpg_key_info_output_type \
     _list \
     _out \
     _key
-  if [[ "${quiet}" == "n" ]]; then
-    _gpg_key_info_opts+=(
-      -v
-    )
-  fi
   _key="${_cache_dir}/key.asc"
   _gpg_opts+=(
     --homedir
@@ -209,9 +205,10 @@ _keys_secret_list() {
     )
     _msg_info \
     "${_msg[*]}"
-    GNUPGHOME="${_gnupg_home}" \
-    gpg \
-      "${_gpg_opts[@]}"
+    _out="$(
+      GNUPGHOME="${_gnupg_home}" \
+      gpg \
+        "${_gpg_opts[@]}")"
   else
     if [[ "${_key_type}" == "public" ]]; then
       _export="--export"
@@ -237,11 +234,15 @@ _keys_secret_list() {
     gpg \
       "${_gpg_opts[@]}" > \
       "${_key}"
+    _gpg_key_info_output_type="${_output_type}"
+    if [[ "${_output_type}" == "address" ]]; then
+      _gpg_key_info_output_type="email"
+    fi
     _gpg_key_info_opts+=(
       -t
         "${_key_type}"
       -o
-        "${_output_type}"
+        "${_gpg_key_info_output_type}"
     )
     _msg=(
       "Running gpg-key-info with options"
@@ -249,10 +250,16 @@ _keys_secret_list() {
     )
     _msg_info \
       "${_msg[*]}"
-    gpg-key-info \
-      "${_gpg_key_info_opts[@]}" \
-      "${_key}"
+    _out="$(
+      gpg-key-info \
+        "${_gpg_key_info_opts[@]}" \
+        "${_key}")"
+    if [[ "${_output_type}" == "address" ]]; then
+      _out="${_out##*@}"
+    fi
   fi
+  echo \
+    "${_out}"
 }
 
 _address_detect() {
@@ -530,6 +537,7 @@ _output_type_check() {
   local \
     _output_types=()
   _output_types+=(
+    "address"
     "email"
     "fingerprint"
     "name"
@@ -539,7 +547,7 @@ _output_type_check() {
       "Unknown output type"
       "'${_output_type}'."
       "Valid types are"
-      "'email', 'fingeprint'"
+      "'address,' 'email', 'fingeprint'"
       "and 'name'."
     )
     _msg_error \
