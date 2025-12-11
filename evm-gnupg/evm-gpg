@@ -187,7 +187,7 @@ _keys_list() {
       --with-colons
     )
   fi
-  if [[ "${_output_type}" == "" ]]; then
+  if [[ "${_output_type}" == "full" ]]; then
     if [[ "${_key_type}" == "public" ]]; then
       _list="--list-keys"
     elif [[ "${_key_type}" == "private" ]]; then
@@ -210,7 +210,8 @@ _keys_list() {
     _out="$(
       GNUPGHOME="${_gnupg_home}" \
       gpg \
-        "${_gpg_opts[@]}")"
+        "${_gpg_opts[@]}" 2>/dev/null || \
+      true)"
   else
     if [[ "${_key_type}" == "public" ]]; then
       _export="--export"
@@ -235,7 +236,8 @@ _keys_list() {
     _gpg_out="$(
       GNUPGHOME="${_gnupg_home}" \
       gpg \
-        "${_gpg_opts[@]}")"
+        "${_gpg_opts[@]}" 2>/dev/null || \
+      true)"
     if [[ "${_gpg_out}" != "" ]]; then
       echo \
         "${_gpg_out}" > \
@@ -552,6 +554,7 @@ _output_type_check() {
     "email"
     "fingerprint"
     "name"
+    "full"
   )
   if [[ " ${_output_types[*]} " != *" ${_output_type} "* ]]; then
     _msg=(
@@ -630,6 +633,9 @@ _keys_list_cmd() {
     "${_gnupg_public}" \
     "${_output_type}" \
     "${_query}"
+  if (( "0" == "${#_query_out[@]}" )); then
+    return 1
+  fi
   for _result in "${_query_out[@]}"; do
     echo \
       "${_result}"
@@ -957,7 +963,7 @@ _set_overrides() {
   _set_override \
     "output" \
     "type" \
-    ""
+    "full"
   _input_type_auto_detect
 }
 
@@ -1027,7 +1033,7 @@ Usage:
 
   list options:
      -o <output-type>       It can be empty, 'fingerprint',
-                            'name' or 'email'.
+                            'name' or 'email' or 'full'.
                             Default: ${output_type}
 
   receive options:
