@@ -1020,8 +1020,8 @@ Usage:
   options:
      -H <gnupg-home>        GNUPG home directory
                             Default: ${gnupg_home}
-     -t <key-type>          It can be empty, 'fingerprint'
-                            'name' or 'email'.
+     -t <key-type>          It can be empty, 'public'
+                            or 'private'.
                             Default: ${key_type}
      -Q                     If enabled, passes the '--with-colons'
                             serializing option to GPG.
