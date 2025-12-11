@@ -161,7 +161,7 @@ $(printf \
 EOF
 }
 
-_keys_secret_list() {
+_keys_list() {
   local \
     _gnupg_home="${1}" \
     _output_type="${2}" \
@@ -171,7 +171,9 @@ _keys_secret_list() {
     _gpg_key_info_output_type \
     _list \
     _out \
+    _gpg_out \
     _key
+  _out=""
   _key="${_cache_dir}/key.asc"
   _gpg_opts+=(
     --homedir
@@ -230,36 +232,44 @@ _keys_secret_list() {
     )
     _msg_info \
       "${_msg[*]}"
-    GNUPGHOME="${_gnupg_home}" \
-    gpg \
-      "${_gpg_opts[@]}" > \
-      "${_key}"
-    _gpg_key_info_output_type="${_output_type}"
-    if [[ "${_output_type}" == "address" ]]; then
-      _gpg_key_info_output_type="email"
-    fi
-    _gpg_key_info_opts+=(
-      -t
-        "${_key_type}"
-      -o
-        "${_gpg_key_info_output_type}"
-    )
-    _msg=(
-      "Running gpg-key-info with options"
-      "'${_gpg_key_info_opts[*]}'."
-    )
-    _msg_info \
-      "${_msg[*]}"
-    _out="$(
-      gpg-key-info \
-        "${_gpg_key_info_opts[@]}" \
-        "${_key}")"
-    if [[ "${_output_type}" == "address" ]]; then
-      _out="${_out##*@}"
+    _gpg_out="$(
+      GNUPGHOME="${_gnupg_home}" \
+      gpg \
+        "${_gpg_opts[@]}")"
+    if [[ "${_gpg_out}" != "" ]]; then
+      echo \
+        "${_gpg_out}" > \
+        "${_key}"
+      _gpg_key_info_output_type="${_output_type}"
+      if [[ "${_output_type}" == "address" ]]; then
+        _gpg_key_info_output_type="email"
+      fi
+      _gpg_key_info_opts+=(
+        -t
+          "${_key_type}"
+        -o
+          "${_gpg_key_info_output_type}"
+      )
+      _msg=(
+        "Running gpg-key-info with options"
+        "'${_gpg_key_info_opts[*]}'."
+      )
+      _msg_info \
+        "${_msg[*]}"
+      _out="$(
+        gpg-key-info \
+          "${_gpg_key_info_opts[@]}" \
+          "${_key}")"
+      if [[ "${_output_type}" == "address" ]]; then
+        _out="${_out##*@}"
+      fi
     fi
   fi
-  echo \
-    "${_out}"
+  if [[ "${_out}" != "" ]]; then
+    _query_out+=(
+      "${_out}"
+    )
+  fi
 }
 
 _address_detect() {
@@ -318,6 +328,7 @@ _keys_import() {
       _msg_info \
         "${_msg[*]}"
       _keys_receive \
+        "${_gnupg_public}" \
         "${_source_import}"
     fi
   fi
@@ -477,14 +488,14 @@ _keys_export() {
 
 _keys_dir() {
   local \
-    _data_dir=
+    _data_dir
   _data_dir="${HOME}/.local/share/${app_name}"
-  _keys_dir="${_data_dir}/${}"
 }
 
 _keys_receive() {
   local \
-    _address="${1}" \
+    _gnupg_home="${1}" \
+    _address="${2}" \
     _contact_name \
     _evm_openpgp_key_receive_opts=() \
     _receive_input_type \
@@ -515,7 +526,7 @@ _keys_receive() {
         "${_contact_name}" \
         "address")"
   fi
-  _keys_dir="${HOME}/.local/share/${app_name}/"
+  _keys_dir="${HOME}/.local/share/${app_name}"
   _evm_openpgp_key_receive_opts+=(
     -H
       "${_gnupg_home}"
@@ -556,6 +567,103 @@ _output_type_check() {
   fi
 }
 
+_key_new_args_parse() {
+  _address="$(
+    evm-wallet \
+     get \
+       "${_wallet_name}" \
+       "address")"
+  _name="${_target_key}"
+  _email="${_name}@${_address}"
+  _full_name="${_target_value}"
+}
+
+_gnupg_public_setup() {
+  _gnupg_public="${HOME}/.local/share/${app_name}"
+  mkdir \
+    -p \
+    "${_gnupg_public}"
+  chmod \
+    700 \
+    "${_gnupg_public}"
+}
+
+_key_new_cmd() {
+  local \
+    _address \
+    _name \
+    _email \
+    _full_name
+  _key_new_args_parse
+  _key_new \
+    "${_gnupg_home}" \
+    "${_email}" \
+    "${_full_name}" \
+    "${_key_passphrase}" \
+    "${_key_comment}"
+}
+
+_keys_list_cmd() {
+  local \
+    _query \
+    _address \
+    _result \
+    _query_out=()
+  _address=""
+  if [[ "${_wallet_name}" != "" ]]; then
+    _address="$(
+      evm-wallet \
+       get \
+         "${_wallet_name}" \
+         "address")"
+  fi
+  _query="${_target_key}"
+  if [[ "${_query}" == "" && \
+        "${_address}" != "" ]]; then
+    _query="@${_address}"
+  fi
+  _keys_list \
+    "${_gnupg_home}" \
+    "${_output_type}" \
+    "${_query}"
+  _keys_list \
+    "${_gnupg_public}" \
+    "${_output_type}" \
+    "${_query}"
+  for _result in "${_query_out[@]}"; do
+    echo \
+      "${_result}"
+  done
+}
+
+_keys_export_cmd() {
+  local \
+    _out_file
+  _out_file="${_target_key}"
+  _keys_export \
+    "${_gnupg_home}" \
+    "${_wallet_name}" \
+    "${_out_file}" \
+    "${_key_type}"
+}
+
+_keys_receive_cmd() {
+  local \
+    _address
+  _address="${_target_key}"
+  _keys_receive \
+    "${_gnupg_public}" \
+    "${_address}"
+}
+
+_keys_import_cmd() {
+  local \
+    _source_import
+  _source_import="${_target_key}"
+  _keys_import \
+    "${_source_import}"
+}
+
 _evm_gpg() {
   local \
     _wallet_name="${1}" \
@@ -575,68 +683,24 @@ _evm_gpg() {
     _target_value="${15}" \
     _command_args=() \
     _args=() \
-    _address \
-    _name \
-    _email \
-    _full_name \
-    _source_import \
-    _out_file \
-    _output_type
+    _gnupg_public
   shift \
     15
   _command_args+=(
     "$@"
   )
   _output_type_check
+  _gnupg_public_setup
   if [[ "${_target_command}" == "new" ]]; then
-    _address="$(
-      evm-wallet \
-       get \
-         "${_wallet_name}" \
-         "address")"
-    _name="${_target_key}"
-    _email="${_name}@${_address}"
-    _full_name="${_target_value}"
-    _key_new \
-      "${_gnupg_home}" \
-      "${_email}" \
-      "${_full_name}" \
-      "${_key_passphrase}" \
-      "${_key_comment}"
+    _key_new_cmd
   elif [[ "${_target_command}" == "export" ]]; then
-    _out_file="${_target_key}"
-    _keys_export \
-      "${_gnupg_home}" \
-      "${_wallet_name}" \
-      "${_out_file}" \
-      "${_key_type}"
+    _keys_export_cmd
   elif [[ "${_target_command}" == "import" ]]; then
-    _source_import="${_target_key}"
-    _keys_import \
-      "${_source_import}"
+    _keys_import_cmd
   elif [[ "${_target_command}" == "list" ]]; then
-    _address=""
-    if [[ "${_wallet_name}" != "" ]]; then
-      _address="$(
-        evm-wallet \
-         get \
-           "${_wallet_name}" \
-           "address")"
-    fi
-    _query="${_target_key}"
-    # _output_type="${_target_value}"
-    if [[ "${_query}" == "" && \
-          "${_address}" != "" ]]; then
-      _query="@${_address}"
-    fi
-    _keys_secret_list \
-      "${_gnupg_home}" \
-      "${_output_type}" \
-      "${_query}"
+    _keys_list_cmd
   elif [[ "${_target_command}" == "receive" ]]; then
-    _address="${_target_key}"
-    _keys_receive \
-      "${_address}"
+    _keys_receive_cmd
   else
     _msg=(
       "Unknown command '${_target_command}'."
