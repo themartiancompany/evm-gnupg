@@ -90,9 +90,11 @@ Import arguments
 List arguments
 ==================
 
- *output-type*     It can be either empty
-                   or 'fingerprint' or
-                   'name' or 'email'.
+ *filter*          A filter to pass GPG to select
+                   a group of keys. Be aware that
+                   for certain output types only
+                   single results can be retrieved
+                   using the list command.
 
 
 Networks
@@ -107,9 +109,9 @@ Options
 ========
 
 -H gnupg-home           GNUPG home directory
+-t <key-type>           It can be 'public' or 'private'.
 -Q                      If enabled, passes the *--with-colons*
                         serializing option to GPG.
--o output-type          Key comment (for 'new' command).
 
 
 Key creation options
@@ -117,6 +119,12 @@ Key creation options
 
 -P passphrase           Key passphrase (for 'new' command).
 -C comment              Key comment (for 'new' command).
+
+
+List options
+==============
+-o output-type          It can be empty, 'fingerprint',
+                        'name' or 'email' or 'full'.
 
 
 Receive options

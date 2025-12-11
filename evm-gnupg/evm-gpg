@@ -998,9 +998,11 @@ Usage:
       <import-source>
     export
       <out-file>
-    receive
-      <address>      or <fingerprint>
-      (<key-number>)
+
+    # On next release:
+    # receive
+    #   <address>      or <fingerprint>
+    #   (<key-number>)
 
   list args:
     filter
