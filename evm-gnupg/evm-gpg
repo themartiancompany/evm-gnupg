@@ -41,10 +41,6 @@ _lib="$(
 # shellcheck disable=SC2034
 _global_variables() {
   call_date=""
-  wallet_name=""
-  wallet_path=""
-  wallet_password=""
-  wallet_seed=""
   wallet_address=""
   gnupg_home=""
   input_type=""
@@ -445,9 +441,10 @@ _gpg_export() {
 _keys_export() {
   local \
     _gnupg_home="${1}" \
-    _wallet_name="${2}" \
-    _out_file="${3}" \
-    _key_type="${4}" \
+    _wallet_address="${2}" \
+    _wallet_name="${3}" \
+    _out_file="${4}" \
+    _key_type="${5}" \
     _gpg_opts=() \
     _export_opts=() \
     _import_opts=() \
@@ -648,6 +645,7 @@ _keys_export_cmd() {
   _out_file="${_target_key}"
   _keys_export \
     "${_gnupg_home}" \
+    "${_wallet_address}" \
     "${_wallet_name}" \
     "${_out_file}" \
     "${_key_type}"
@@ -676,22 +674,23 @@ _evm_gpg() {
     _wallet_path="${2}" \
     _wallet_password="${3}" \
     _wallet_seed="${4}" \
-    _gnupg_home="${5}" \
-    _key_passphrase="${6}" \
-    _key_comment="${7}" \
-    _with_colons="${8}" \
-    _input_type="${9}" \
-    _output_type="${10}" \
-    _key_type="${11}" \
-    _cache_dir="${12}" \
-    _target_command="${13}" \
-    _target_key="${14}" \
-    _target_value="${15}" \
+    _wallet_address="${5}" \
+    _gnupg_home="${6}" \
+    _key_passphrase="${7}" \
+    _key_comment="${8}" \
+    _with_colons="${9}" \
+    _input_type="${10}" \
+    _output_type="${11}" \
+    _key_type="${12}" \
+    _cache_dir="${13}" \
+    _target_command="${14}" \
+    _target_key="${15}" \
+    _target_value="${16}" \
     _command_args=() \
     _args=() \
     _gnupg_public
   shift \
-    15
+    16
   _command_args+=(
     "$@"
   )
@@ -886,6 +885,41 @@ _cache_dir_auto_detect() {
     "${_dir}"
 }
 
+_wallet_address_auto_detect() {
+  local \
+    _wallet_address \
+    _msg=()
+  _wallet_address=""
+  if [[ "${wallet_name}" != "" ]]; then
+    _wallet_address="$(
+      evm-wallet \
+        get \
+          "${wallet_name}" \
+          "address")"
+  fi
+  if [[ -v "override_wallet_address" ]]; then
+    if [[ ! -v "override_wallet_name" ]]; then
+      wallet_name=""
+    elif [[ -v "override_wallet_name" ]]; then
+      if [[ "${_wallet_address}" != "${override_wallet_address}" ]]; then
+        _msg=(
+          "Address '${_wallet_address}'"
+          "corresponding to wallet '${_wallet_name}'"
+          "differs from input address"
+          "'${override_wallet_address}'."
+        )
+        _msg_error \
+          "${_msg[*]}" \
+          1
+      fi
+    fi
+  fi
+  _set_override \
+    "wallet" \
+    "address" \
+    "${_wallet_address}"
+}
+
 _set_overrides() {
   local \
     _msg=() \
@@ -921,15 +955,7 @@ _set_overrides() {
     "evm-wallet" \
     "${wallet_name}" \
     "n" # "${call_auth}"
-  if [[ "${wallet_name}" != "" ]]; then
-    _set_override \
-      "wallet" \
-      "address" \
-      "$(evm-wallet \
-           get \
-             "${wallet_name}" \
-             "address")"
-  fi
+  _wallet_address_auto_detect
   _gnupg_home_auto_detect
   _set_override \
     "target" \
@@ -997,7 +1023,7 @@ Usage:
     import
       <import-source>
     export
-      <out-file>
+      (<out-file>)
 
     # On next release:
     # receive
@@ -1033,6 +1059,10 @@ Usage:
      -C <comment>           Key comment (for 'new' command).
                             Default: ${key_comment}
 
+  export options:
+     -a <address>           Export key corresponding to a specific address.
+                            Default: ${wallet_address}
+
   list options:
      -o <output-type>       It can be empty, 'fingerprint',
                             'name' or 'email' or 'full'.
@@ -1056,6 +1086,7 @@ Usage:
      -h                     This message.
      -c                     Enable color output
      -v                     Enable verbose output
+
 ENDUSAGETEXT
   _printf \
     '%s\n' \
@@ -1113,7 +1144,7 @@ _requirements
 getopts_opts="$(
   printf \
     "%s" \
-    "H:P:C:Qo:" \
+    "a:H:P:C:Qt:o:" \
     "C:" \
     "$(_libevm_app_getopts_params_get)" \
     "n:" \
@@ -1128,14 +1159,8 @@ while \
   _libevm_app_getopts_case
   case \
     "${arg}" in
-    N)
-      override_wallet_name="${OPTARG}" ;;
-    w)
-      override_wallet_path="${OPTARG}" ;;
-    p)
-      override_wallet_password="${OPTARG}" ;;
-    s)
-      override_wallet_seed="${OPTARG}" ;;
+    a)
+      override_wallet_address="${OPTARG}" ;;
     H)
       override_gnupg_home="${OPTARG}" ;;
     P)
@@ -1208,6 +1233,7 @@ app_opts=(
   "${wallet_path}"
   "${wallet_password}"
   "${wallet_seed}"
+  "${wallet_address}"
   "${gnupg_home}"
   "${key_passphrase}"
   "${key_comment}"
