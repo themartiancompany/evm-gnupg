@@ -63,7 +63,7 @@ Commands
 
   Import a key from an input source.
 
-* list *output-type*
+* list *filter*
  
   List the available signing/encrypting
   keys in the local database.
@@ -125,7 +125,7 @@ List options
 ==============
 -o output-type          It can be empty, 'fingerprint',
                         'name' or 'email' or 'full'.
-
+-a wallet-address       Override credentials options.
 
 Receive options
 =================
@@ -137,7 +137,7 @@ Receive options
 Credentials options
 =====================
 
--N wallet_name          Wallet name.
+-N wallet-name          Wallet name.
 -w wallet-path          Wallet path.
 -p wallet-password      Wallet password.
 -s wallet-seed          Wallet seed path.
