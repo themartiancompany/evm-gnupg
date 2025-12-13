@@ -617,6 +617,9 @@ _keys_list_cmd() {
          "${_wallet_name}" \
          "address")"
   fi
+  if [[ "${_wallet_address}" != "" ]]; then
+    _address="${_wallet_addres}"
+  fi
   _query="${_target_key}"
   if [[ "${_query}" == "" && \
         "${_address}" != "" ]]; then
@@ -1120,7 +1123,9 @@ _show_config() {
   _msg_info "           Target command:   ${target_command}"
   _msg_info "               Target key:   ${target_key}"
   _msg_info "             Target value:   ${target_value}"
+  _msg_info "         Receive options:"
   _msg_info "               Input type:   ${input_type}"
+  _msg_info "           List options:"
   _msg_info "              Output type:   ${output_type}"
   _msg_info "              With colons:   ${with_colons}"
   _msg_info "          GNUPG directory:   ${gnupg_home}"
@@ -1144,7 +1149,7 @@ _requirements
 getopts_opts="$(
   printf \
     "%s" \
-    "a:H:P:C:Qt:o:" \
+    "a:H:P:C:Qt:i:o:" \
     "C:" \
     "$(_libevm_app_getopts_params_get)" \
     "n:" \
@@ -1171,6 +1176,8 @@ while \
       override_with_colons="y" ;;
     t)
       override_key_type="${OPTARG}" ;;
+    i)
+      override_input_type="${OPTARG}" ;;
     o)
       override_output_type="${OPTARG}" ;;
     W)
