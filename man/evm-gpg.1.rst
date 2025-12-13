@@ -31,6 +31,7 @@ Ethereum Virtual Machine (EVM) compatible GNU Privacy Guard wrapper
 :Version: evm-gpg |version|
 :Manual section: 1
 
+
 Synopsis
 ========
 
@@ -45,6 +46,7 @@ Virtual Machine (EVM) Toolchain.
 
 EVM GNUPG uses EVM Wallet to interface with
 wallets.
+
 
 Commands
 ==========
@@ -87,6 +89,7 @@ Import arguments
                     * a key fingerprint;
                     * a file.
 
+
 List arguments
 ==================
 
@@ -126,6 +129,7 @@ List options
 -o output-type          It can be empty, 'fingerprint',
                         'name' or 'email' or 'full'.
 -a wallet-address       Override credentials options.
+
 
 Receive options
 =================
