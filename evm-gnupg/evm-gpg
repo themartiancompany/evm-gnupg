@@ -618,7 +618,7 @@ _keys_list_cmd() {
          "address")"
   fi
   if [[ "${_wallet_address}" != "" ]]; then
-    _address="${_wallet_addres}"
+    _address="${_wallet_address}"
   fi
   _query="${_target_key}"
   if [[ "${_query}" == "" && \
