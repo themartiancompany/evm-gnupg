@@ -84,7 +84,7 @@ _get_data_dir_path() {
 }
 
 # Generate an OpenPGP key for the input address
-_key_new() {
+_keys_new() {
   local \
     _gnupg_home="${1}" \
     _email="${2}" \
@@ -549,6 +549,34 @@ _keys_receive() {
     "${_key}"
 }
 
+_keys_publish() {
+  local \
+    _gnupg_home="${1}" \
+    _fingerprint="${2}" \
+    _contact_name \
+    _evm_openpgp_key_publish_opts=() \
+    _publish_input_type \
+    _key \
+    _address
+  _publish_input_type="fingerprint"
+  if [[ "${quiet}" == "n" ]]; then
+    _evm_openpgp_key_publish_opts+=(
+      -v
+    )
+  fi
+  _evm_openpgp_key_publish_opts+=(
+    -N
+      "${_wallet_name}"
+    -H
+      "${_gnupg_home}"
+    -t
+      "${_publish_input_type}"
+  )
+  evm-openpgp-key-receive \
+    "${_evm_openpgp_key_receive_opts[@]}" \
+    "${_fingerprint}"
+}
+
 _output_type_check() {
   local \
     _output_types=()
@@ -573,7 +601,7 @@ _output_type_check() {
   fi
 }
 
-_key_new_args_parse() {
+_keys_new_args_parse() {
   local \
     _evm_wallet_args=()
   _evm_wallet_args+=(
@@ -599,7 +627,7 @@ _gnupg_public_setup() {
     "${_gnupg_public}"
 }
 
-_key_new_cmd() {
+_keys_new_cmd() {
   local \
     _address \
     _name \
@@ -607,8 +635,8 @@ _key_new_cmd() {
     _full_name \
     _tmp_file
   _tmp_file="${_cache_dir}/temp.key"
-  _key_new_args_parse
-  _key_new \
+  _keys_new_args_parse
+  _keys_new \
     "${_gnupg_home}" \
     "${_email}" \
     "${_full_name}" \
@@ -627,13 +655,10 @@ _key_new_cmd() {
     "${_tmp_file}"
 }
 
-_keys_list_cmd() {
+_query_get() {
   local \
-    _query \
-    _address \
-    _result \
-    _query_out=() \
-    _query_set
+    _address
+  _query="${_command_key}"
   _address=""
   if [[ "${_wallet_name}" != "" ]]; then
     _address="$(
@@ -645,11 +670,19 @@ _keys_list_cmd() {
   if [[ "${_wallet_address}" != "" ]]; then
     _address="${_wallet_address}"
   fi
-  _query="${_command_key}"
   if [[ "${_query}" == "" && \
         "${_address}" != "" ]]; then
     _query="@${_address}"
   fi
+}
+
+_keys_list_cmd() {
+  local \
+    _query \
+    _query_out=() \
+    _result \
+    _results
+  _query_get
   _keys_list \
     "${_gnupg_home}" \
     "${_output_type}" \
@@ -663,10 +696,47 @@ _keys_list_cmd() {
   fi
   _array_set \
     "_query_out" \
-    "_query_set"
-  for _result in "${_query_set[@]}"; do
+    "_results"
+  for _result in "${_results[@]}"; do
     echo \
       "${_result}"
+  done
+}
+
+_keys_publish_cmd() {
+  local \
+    _fingerprint \
+    _query \
+    _query_out=() \
+    _result \
+    _results \
+    _output_type
+  _output_type="fingerprint"
+  _query_get
+  _keys_list \
+    "${_gnupg_home}" \
+    "${_output_type}" \
+    "${_query}"
+  _keys_list \
+    "${_gnupg_public}" \
+    "${_output_type}" \
+    "${_query}"
+  if (( "0" == "${#_query_out[@]}" )); then
+    _msg=(
+      "Found no keys for query"
+      "'${_query}'."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+  _array_set \
+    "_query_out" \
+    "_results"
+  for _fingerprint in "${_results[@]}"; do
+    _keys_publish \
+      "${_gnupg_public}" \
+      "${_fingerprint}"
   done
 }
 
@@ -718,34 +788,42 @@ _evm_gpg() {
     _target_command="${15}" \
     _command_key="${16}" \
     _command_value="${17}" \
+    _commands_available=() \
     _command_args=() \
     _args=() \
-    _gnupg_public
+    _gnupg_public \
+    _command \
+    _command_flag
   shift \
     17
   _command_args+=(
     "$@"
   )
+  _command_flag="false"
+  _commands_available=(
+    "export"
+    "import"
+    "list"
+    "new"
+    "publish"
+  )
   _output_type_check
   _gnupg_public_setup
-  if [[ "${_target_command}" == "new" ]]; then
-    _key_new_cmd
-  elif [[ "${_target_command}" == "export" ]]; then
-    _keys_export_cmd
-  elif [[ "${_target_command}" == "import" ]]; then
-    _keys_import_cmd
-  elif [[ "${_target_command}" == "list" ]]; then
-    _keys_list_cmd
-  elif [[ "${_target_command}" == "receive" ]]; then
-    _keys_receive_cmd
-  else
-    _msg=(
+  for _command in "${_commands_available[@]}"; do
+    if [[ "${_command}" == "${_target_command}" ]]; then
+      "_keys_${_command}_cmd"
+      _command_flag="true"
+      break
+    fi
+  done
+  if [[ "${_command}" == "false" ]]; then
+     _msg=(
       "Unknown command '${_target_command}'."
     )
     _msg_error \
       "${_msg[*]}" \
       1
-  fi
+  fi 
 }
 
 _gnupg_home_auto_detect() {
