@@ -23,7 +23,7 @@
 
 GNUPG wrapper compatible
 with the
-["OpenPGP on Ethereum"](
+[*OpenPGP on Ethereum*](
   docs/openpgp-on-ethereum.md)
 address specification
 proposal by The Martian Company.
