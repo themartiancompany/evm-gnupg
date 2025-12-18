@@ -500,12 +500,6 @@ _keys_export() {
     "@${_address}"
 }
 
-_keys_dir() {
-  local \
-    _data_dir
-  _data_dir="${HOME}/.local/share/${app_name}"
-}
-
 _keys_receive() {
   local \
     _gnupg_home="${1}" \
@@ -513,10 +507,8 @@ _keys_receive() {
     _contact_name \
     _evm_openpgp_key_receive_opts=() \
     _receive_input_type \
-    _keys_dir \
     _key \
     _address
-  # _keys_dir=""
   if [[ "${quiet}" == "n" ]]; then
     _evm_openpgp_key_receive_opts+=(
       -v
@@ -540,7 +532,6 @@ _keys_receive() {
         "${_contact_name}" \
         "address")"
   fi
-  _keys_dir="${HOME}/.local/share/${app_name}"
   _evm_openpgp_key_receive_opts+=(
     -H
       "${_gnupg_home}"
@@ -551,7 +542,7 @@ _keys_receive() {
     -P
       "${_key}"
     # -o
-    #   "${_keys_dir}"
+    #   "${_gnupg_public}"
   )
   evm-openpgp-key-receive \
     "${_evm_openpgp_key_receive_opts[@]}" \
@@ -599,7 +590,7 @@ _key_new_args_parse() {
 }
 
 _gnupg_public_setup() {
-  _gnupg_public="${HOME}/.local/share/${app_name}"
+  _gnupg_public="${HOME}/.local/share/evm-gnupg/gnupg"
   mkdir \
     -p \
     "${_gnupg_public}"
@@ -631,7 +622,9 @@ _key_new_cmd() {
     "public"
   _keys_import \
     "${_gnupg_public}" \
-    "${_wallet_address}"
+    "${_tmp_file}"
+  rm \
+    "${_tmp_file}"
 }
 
 _keys_list_cmd() {
@@ -639,7 +632,8 @@ _keys_list_cmd() {
     _query \
     _address \
     _result \
-    _query_out=()
+    _query_out=() \
+    _query_set
   _address=""
   if [[ "${_wallet_name}" != "" ]]; then
     _address="$(
@@ -667,7 +661,10 @@ _keys_list_cmd() {
   if (( "0" == "${#_query_out[@]}" )); then
     return 1
   fi
-  for _result in "${_query_out[@]}"; do
+  _array_set \
+    "_query_out" \
+    "_query_set"
+  for _result in "${_query_set[@]}"; do
     echo \
       "${_result}"
   done
@@ -764,7 +761,7 @@ _gnupg_home_auto_detect() {
       "_get_conf_dir_path")"
   elif [[ "${_type}" == "public" ]]; then
     _home_default="$(
-      "_get_data_dir_path")"
+      "_get_data_dir_path")/gnupg"
   else
     _msg=(
       "Unknown home type '${_type}'."
@@ -952,7 +949,7 @@ _input_type_auto_detect() {
 _cache_dir_auto_detect() {
   local \
     _dir
-  _dir="${HOME}/.cache/${app_name}"
+  _dir="${HOME}/.cache/evm-gnupg"
   if [[ ! -v "override_cache_dir" ]]; then
     if [[ ! -d "${_dir}" ]]; then
       mkdir \
