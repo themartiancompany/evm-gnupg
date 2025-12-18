@@ -77,30 +77,46 @@ Commands
 Export arguments
 =================
 
- *out-file*         File in which to save the
-                    exported key.
+* *out-file* 
 
- *key-type*         It can be 'public' or
-                    'private'.
+  File in which to save the
+  exported key.
+
+* *key-type*
+  
+  It can be 'public' or
+  'private'.
 
 
 Import arguments
 ==================
 
- *input-source*     It can be one between
-                    * a directory;
-                    * a key fingerprint;
-                    * a file.
+* *input-source*
+
+  It can be one between
+  * a directory;
+  * a key fingerprint;
+  * a file.
 
 
 List arguments
 ==================
 
- *filter*          A filter to pass GPG to select
-                   a group of keys. Be aware that
-                   for certain output types only
-                   single results can be retrieved
-                   using the list command.
+* *filter*
+
+  A filter to pass GPG to select
+  a group of keys. Be aware that
+  for certain output types only
+  single results can be retrieved
+  using the list command.
+
+
+Publish arguments
+==================
+
+* *filter*
+ 
+  Same as above.
 
 
 Networks
@@ -127,6 +143,9 @@ Key creation options
 
 -P passphrase           Key passphrase (for 'new' command).
 -C comment              Key comment (for 'new' command).
+-S                      If enabled, automatically publishes
+                        the newly key on the EVM OpenPGP
+                        Key Server.
 
 
 List options
@@ -203,9 +222,12 @@ Copyright Pellegrino Prevete. AGPL-3.0.
 See also
 ========
 
+* evm-gpg-key-address-check
+* evm-gpg-decrypt
 * evm-openpgp-key-publish
 * evm-openpgp-key-receive
 * evm-wallet
 * evm-contract-call
+* gpg-key-info
 
 .. include:: variables.rst
