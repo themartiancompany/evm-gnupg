@@ -41,12 +41,38 @@ evm-gpg *[options]* *command* *[command_args]*
 Description
 ===========
 
-GNUPG wrapper for use by the Ethereum
-Virtual Machine (EVM) Toolchain.
+GNUPG wrapper compatible
+with the "OpenPGP on Ethereum"
+address specification
+proposal by The Martian Company.
 
-EVM GNUPG uses EVM Wallet to interface with
-wallets.
+EVM GNUPG uses EVM Wallet to
+interface with Ethereum's External
+Owner Accounts (EOA, ie. wallets).
 
+Address specification
+=======================
+
+An OpenPGP key for an
+External Owner Account
+having address *address* is
+a standard OpenPGP key associated
+to an user ID of the form
+
+*username@address*
+
+Key validity
+===============
+
+An EOA OpenPGP key is defined
+valid according to a source
+when the the source has published
+the key on an EVM OpenPGP Key Server
+deployment.
+
+When the source is the EOA
+itself, the key is defined
+valid.
 
 Commands
 ==========
