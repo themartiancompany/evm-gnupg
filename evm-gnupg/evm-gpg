@@ -572,8 +572,8 @@ _keys_publish() {
     -t
       "${_publish_input_type}"
   )
-  evm-openpgp-key-receive \
-    "${_evm_openpgp_key_receive_opts[@]}" \
+  evm-openpgp-key-publish \
+    "${_evm_openpgp_key_publish_opts[@]}" \
     "${_fingerprint}"
 }
 
