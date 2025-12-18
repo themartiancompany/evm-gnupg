@@ -50,29 +50,6 @@ EVM GNUPG uses EVM Wallet to
 interface with Ethereum's External
 Owner Accounts (EOA, ie. wallets).
 
-Address specification
-=======================
-
-An OpenPGP key for an
-External Owner Account
-having address *address* is
-a standard OpenPGP key associated
-to an user ID of the form
-
-*username@address*
-
-Key validity
-===============
-
-An EOA OpenPGP key is defined
-valid according to a source
-when the the source has published
-the key on an EVM OpenPGP Key Server
-deployment.
-
-When the source is the EOA
-itself, the key is defined
-valid.
 
 Commands
 ==========
@@ -138,6 +115,8 @@ Options
 ========
 
 -H gnupg-home           GNUPG home directory
+-K gnupg-public         Public keys keyring GNUPG
+                        home directory.
 -t <key-type>           It can be 'public' or 'private'.
 -Q                      If enabled, passes the *--with-colons*
                         serializing option to GPG.
@@ -183,6 +162,33 @@ LibEVM options
 -h                      Displays help.
 -c                      Enables color output
 -v                      Enables verbose output
+
+
+Address specification
+=======================
+
+An OpenPGP key for an
+External Owner Account
+having address *address* is
+a standard OpenPGP key associated
+to an user ID of the form
+
+*username@address*
+
+
+Key validity
+===============
+
+An EOA OpenPGP key is defined
+valid according to a source
+when the the source has published
+the key on an EVM OpenPGP Key Server
+deployment.
+
+When the source is the EOA
+itself, the key is defined
+valid.
+
 
 Bugs
 ====
