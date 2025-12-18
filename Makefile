@@ -68,6 +68,10 @@ install-doc:
 	  $(DOC_FILES) \
 	  -t \
 	  $(DOC_DIR)
+	cp \
+	  -r \
+	  "docs" \
+	  "$(DOC_DIR)"
 
 install-man:
 
