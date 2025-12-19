@@ -224,30 +224,52 @@ valid.
 Examples
 ===========
 
-Creates and validate (publish on the keyserver) a new key
-for wallet 'user':
+* Creates and validate (publish on the EVM Key Server) a new key
+  for wallet 'user':
 
-..  code-block:: bash
-
-   evm-gpg \
-     -
-     new \
-       "user" \
-
-    _bin="$( \
-      dirname \
-        "$( \
-          command \
-            -v \
-    	  "env")")"
-    _lib="$( \
-      realpath \
-
-
-..code
-
-  evm-gpg \
+  ..  code-block:: bash
   
+     evm-gpg \
+       -S \
+       new \
+         "user" \
+         "User's Real Name"
+
+* Retrieves the valid public key corresponding to a given fingerprint.
+
+  ..  code-block:: bash
+  
+     evm-gpg \
+       receive \
+       "ANOPENPGPKEYFINGERPRINT"
+
+* Display general information about valid keys for EOA with Ethereum address *0xfortytwochars*
+
+  ..  code-block:: bash
+  
+     evm-gpg \
+       list \
+       "@0xfortytwochars"
+
+* Display all EOA addresses who published a valid key with username *john*
+
+  ..  code-block:: bash
+  
+     evm-gpg \
+       list \
+       "john@"
+
+* Display the public key fingerprints for EOA with Ethereum address *0xabcdef*
+
+  ..  code-block:: bash
+  
+     evm-gpg \
+       -o \
+         "fingerprint" \
+       -- \
+       list \
+       "john@"
+
 
 Bugs
 ====
