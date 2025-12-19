@@ -1342,8 +1342,8 @@ Usage:
 
 
 More informations about the "OpenPGP on Ethereum"
-specification are made available in EVM GPG manual,
-which can be browsed with
+specification as well as usage examples have been
+made available in EVM GPG manual, which can be browsed with
 
   man \
     evm-gpg
