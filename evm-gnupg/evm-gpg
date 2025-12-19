@@ -504,9 +504,11 @@ _keys_export() {
 _keys_receive() {
   local \
     _gnupg_home="${1}" \
-    _address="${2}" \
+    _command_key="${2}" \
+    _command_value="${3}" \
     _contact_name \
     _evm_openpgp_key_receive_opts=() \
+    _evm_openpgp_key_receive_args=() \
     _receive_input_type \
     _key \
     _address
@@ -515,39 +517,57 @@ _keys_receive() {
       -v
     )
   fi
-  if [[ "${_input_type}" == "address" ]]; then
+  _evm_openpgp_key_receive_opts+=(
+    -H
+      "${_gnupg_home}"
+    -f
+      "y"
+  )
+  if [[ "${_input_type}" == "auto" ]]; then
+    _receive_input_type=""
+  elif [[ "${_input_type}" == "address" ]]; then
     _receive_input_type="number"
+    _evm_openpgp_key_receive_args+=(
+      "${_command_key}"
+      "${_command_value}"
+    )
   elif [[ "${_input_type}" == "fingerprint" ]]; then
     _receive_input_type="fingerprint"
-    _address="$(
-      evm-wallet \
-        get \
-        "${_wallet_name}" \
-        "address")"
+    _fingerprint="${_command_key}"
+    _evm_openpgp_key_receive_args+=(
+      "${_fingerprint}"
+    )
   elif [[ "${_input_type}" == "contact" ]]; then
     _receive_input_type="number"
     _contact_name="${_command_key}"
-    _key="$(
+    _address="$(
       evm-wallet \
         get \
         "${_contact_name}" \
         "address")"
+    _evm_openpgp_key_receive_args+=(
+      "${_address}"
+    )
+  else
+    _msg=(
+      "Unknown input type '${_receive_input_type}'."
+    )
   fi
-  _evm_openpgp_key_receive_opts+=(
-    -H
-      "${_gnupg_home}"
-    -t
-      "${_receive_input_type}"
-    -f
-      "n"
-    -P
-      "${_key}"
-    # -o
-    #   "${_gnupg_public}"
-  )
+  # _evm_openpgp_key_receive_opts+=(
+  #   -P
+  #     "${_key}"
+  #   -o
+  #     "${_gnupg_public}"
+  # )
+  if [[ "${_receive_input_type}" != "" ]]; then
+    _evm_openpgp_key_receive_opts+=(
+      -t
+        "${_receive_input_type}"
+    )
+  fi
   evm-openpgp-key-receive \
     "${_evm_openpgp_key_receive_opts[@]}" \
-    "${_key}"
+    "${_evm_openpgp_key_receive_args[@]}"
 }
 
 _keys_publish() {
@@ -649,7 +669,9 @@ _keys_new_cmd() {
     _name \
     _email \
     _full_name \
-    _tmp_file
+    _tmp_file \
+    _query \
+    _fingerprints=()
   _tmp_file="${_cache_dir}/temp.key"
   _keys_new_args_parse
   _keys_new \
@@ -669,6 +691,18 @@ _keys_new_cmd() {
     "${_tmp_file}"
   rm \
     "${_tmp_file}"
+  if [[ "${_key_publish}" == "y" ]]; then
+    _keys_list \
+      "${_gnupg_home}" \
+      "fingerprint" \
+      "@${_wallet_address}"
+    _array_set \
+      "_query_out" \
+      "_fingerprints"
+    _keys_publish \
+      "${_gnupg_public}" \
+      "${_fingerprints[0]}"
+  fi
 }
 
 _query_get() {
@@ -697,12 +731,28 @@ _keys_list_cmd() {
     _query \
     _query_out=() \
     _result \
-    _results
+    _results=()
   _query_get
+  if [[ "${_output_type}" == "full" && \
+        "${_with_colons}" == "n" ]]; then
+    _query_out+=(
+      ""
+      "GNUPG private home directory ('${_gnupg_home}')"
+      ""
+    )
+  fi
   _keys_list \
     "${_gnupg_home}" \
     "${_output_type}" \
     "${_query}"
+  if [[ "${_output_type}" == "full" && \
+        "${_with_colons}" == "n" ]]; then
+    _query_out+=(
+      ""
+      "GNUPG public home directory ('${_gnupg_public}')"
+      ""
+    )
+  fi
   _keys_list \
     "${_gnupg_public}" \
     "${_output_type}" \
@@ -710,9 +760,15 @@ _keys_list_cmd() {
   if (( "0" == "${#_query_out[@]}" )); then
     return 1
   fi
-  _array_set \
-    "_query_out" \
-    "_results"
+  if [[ "${_output_type}" != "full" ]]; then
+    _array_set \
+      "_query_out" \
+      "_results"
+  else
+    _results=(
+      "${_query_out[@]}"
+    )
+  fi
   for _result in "${_results[@]}"; do
     echo \
       "${_result}"
@@ -770,11 +826,14 @@ _keys_export_cmd() {
 
 _keys_receive_cmd() {
   local \
-    _address
-  _address="${_command_key}"
+    _query=()
+  _query+=(
+    "${_command_key}"
+    "${_command_value}"
+  )
   _keys_receive \
     "${_gnupg_public}" \
-    "${_address}"
+    "${_query[@]}"
 }
 
 _keys_import_cmd() {
@@ -823,6 +882,7 @@ _evm_gpg() {
     "list"
     "new"
     "publish"
+    "receive"
   )
   _output_type_check
   _gnupg_public_setup
@@ -834,7 +894,7 @@ _evm_gpg() {
     fi
   done
   if [[ "${_command}" == "false" ]]; then
-     _msg=(
+    _msg=(
       "Unknown command '${_target_command}'."
     )
     _msg_error \
@@ -1202,11 +1262,8 @@ Usage:
       (<out-file>)
     publish
       (<filter>)
-
-    # On next release:
-    # receive
-    #   <address>      or <fingerprint>
-    #   (<key-number>)
+    receive
+      (<filter>)
 
   list args:
     filter                  The selection filter which is
@@ -1214,6 +1271,13 @@ Usage:
 
   publish args:
     filter                  Same as the other filter
+
+  list args:
+    filter                  It can be a OpenPGP key fingerprint,
+                            an EOA address or an EVM Wallet contact
+                            name respectively if the output type
+                            selected is 'fingerprint', 'address'
+                            or contact.
 
   import sources:
     directory               GNUPG home directory
@@ -1243,6 +1307,10 @@ Usage:
                             Default: ${key_passphrase}
      -C <comment>           Key comment (for 'new' command).
                             Default: ${key_comment}
+     -S                     If enabled, automatically publishes
+                            the newly key on the EVM OpenPGP
+                            Key Server.
+                            Default: ${key_publish}
 
   export options:
      -a <address>           Export key corresponding to a specific address.
@@ -1323,6 +1391,7 @@ _show_config() {
   _msg_info "        New key options:"
   _msg_info "           Key passphrase:   ${_passphrase_show:-}"
   _msg_info "              Key comment:   ${key_comment}"
+  _msg_info "              Publish key:   ${key_publish}"
   _msg_info "    Credentials options:"
   _msg_info "              Wallet name:   ${wallet_name}"
   _msg_info "           Wallet address:   ${wallet_address}"
@@ -1340,7 +1409,7 @@ _requirements
 getopts_opts="$(
   printf \
     "%s" \
-    "a:H:P:C:Qt:i:o:" \
+    "a:SH:P:C:Qt:i:o:" \
     "C:" \
     "$(_libevm_app_getopts_params_get)" \
     "n:" \
@@ -1357,12 +1426,6 @@ while \
     "${arg}" in
     a)
       override_wallet_address="${OPTARG}" ;;
-    H)
-      override_gnupg_home="${OPTARG}" ;;
-    P)
-      override_key_passphrase="${OPTARG}" ;;
-    C)
-      override_key_comment="${OPTARG}" ;;
     Q)
       override_with_colons="y" ;;
     t)
@@ -1371,6 +1434,14 @@ while \
       override_input_type="${OPTARG}" ;;
     o)
       override_output_type="${OPTARG}" ;;
+    P)
+      override_key_passphrase="${OPTARG}" ;;
+    C)
+      override_key_comment="${OPTARG}" ;;
+    S)
+      override_key_publish="${OPTARG}" ;;
+    H)
+      override_gnupg_home="${OPTARG}" ;;
     W)
       override_cache_dir="${OPTARG}" ;;
     c)

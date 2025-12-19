@@ -119,6 +119,18 @@ Publish arguments
   Same as above.
 
 
+Receive arguments
+==================
+
+* *filter*
+ 
+  It can be a OpenPGP key fingerprint,
+  an EOA address or an EVM Wallet contact
+  name respectively if the output type
+  selected is 'fingerprint', 'address'
+  or contact.
+
+
 Networks
 =========
 
@@ -208,6 +220,34 @@ When the source is the EOA
 itself, the key is defined
 valid.
 
+
+Examples
+===========
+
+Creates and validate (publish on the keyserver) a new key
+for wallet 'user':
+
+..  code-block:: bash
+
+   evm-gpg \
+     -
+     new \
+       "user" \
+
+    _bin="$( \
+      dirname \
+        "$( \
+          command \
+            -v \
+    	  "env")")"
+    _lib="$( \
+      realpath \
+
+
+..code
+
+  evm-gpg \
+  
 
 Bugs
 ====
