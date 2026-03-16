@@ -107,7 +107,6 @@ _keys_new() {
     --homedir
     "${_gnupg_home}"
     --gen-key
-    --require-pqc-encryption
   )
   _gpg_conf_array+=(
     "quiet"
@@ -118,6 +117,7 @@ _keys_new() {
     "list-options no-show-keyring"
     "armor"
     "no-emit-version"
+    "require-pqc-encryption"
   )
   _gpg_generate_array+=(
     "%echo Generating key pair for '${_name}'..."
