@@ -121,7 +121,7 @@ _keys_new() {
   )
   _gpg_generate_array+=(
     "%echo Generating key pair for '${_name}'..."
-    # "Key-Type: eddsa"
+    "Key-Type: kyber"
     # "Key-Curve: ed25519"
     # "Key-Length: 4096"
     "Key-Usage: sign"
