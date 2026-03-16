@@ -101,8 +101,8 @@ _keys_new() {
     _passphrase="${4}" \
     _comment="${5}" \
     _gpg_conf_array=() \
-      _gpg_generate_array=() \
-        _gpg_opts=()
+    _gpg_generate_array=() \
+    _gpg_opts=()
   _gpg_opts+=(
     --homedir
     "${_gnupg_home}"
@@ -117,7 +117,7 @@ _keys_new() {
     "list-options no-show-keyring"
     "armor"
     "no-emit-version"
-    "require-pqc-encryption"
+    # "require-pqc-encryption"
   )
   _gpg_generate_array+=(
     "%echo Generating key pair for '${_name}'..."
