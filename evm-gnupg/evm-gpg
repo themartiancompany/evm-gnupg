@@ -1020,6 +1020,7 @@ _username_check() {
   local \
     _real_name \
     _username \
+    _qr_wallet \
     _msg=()
   _username="${command_key}"
   if [[ "${_username}" == "" ]]; then
@@ -1034,6 +1035,17 @@ _username_check() {
       1
   fi
   if [[ "${_username}" != "${wallet_name}" ]]; then
+    _qr_wallet="${HOME}/.config/evm-wallet/${_username}-qr-seed.txt"
+    if [[ -e "${_qr_wallet}" ]]; then
+      _msg=(
+        "Creating OpenPGP key with"
+        "username '${_username}' for"
+        "'${wallet_name}' QR-resistant"
+        "account managed by EVM Wallet."
+      )
+      _msg_info \
+        "${_msg[*]}"
+    else
     _msg=(
       "Creating OpenPGP key with"
       "'${_username}' but there is no"
