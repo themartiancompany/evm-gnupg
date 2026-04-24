@@ -226,6 +226,7 @@ _keys_new_quick() {
     _gpg_generate_array=() \
     _gpg_opts=() \
     _gpg_gen \
+    _gpg_edit \
     _key_new_fingerprint \
     _key_new_fingerprint_small
   # Seems not implemented
@@ -301,7 +302,14 @@ __EOF__
     gpg \
       "${_gpg_gen_opts[@]}" \
       "${_gpg_gen_args[@]}" \
-      2>&1)"
+      2>&1 || \
+      true)"
+  _msg=(
+    "Output of key generation:"
+    "'${_gpg_gen}'."
+  )
+  _msg_info \
+    "${_msg[*]}"
   _key_new_fingerprint_small="$(
     echo \
       "${_gpg_gen}" |
@@ -332,9 +340,18 @@ __EOF__
     "${_key_new_fingerprint}"
     "${_cipher_encrypt}"
   )
-  gpg \
-    "${_gpg_edit_opts[@]}" \
-    "${_gpg_edit_args[@]}"
+  _gpg_edit="$(
+    gpg \
+      "${_gpg_edit_opts[@]}" \
+      "${_gpg_edit_args[@]}" \
+      2>&1 || \
+    true)"
+  _msg=(
+    "Output of key edit:"
+    "'${_gpg_edit}'."
+  )
+  _msg_info \
+    "${_msg[*]}"
 }
 
 _keys_list() {
