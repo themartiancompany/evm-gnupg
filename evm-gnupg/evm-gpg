@@ -93,7 +93,7 @@ _get_data_dir_path() {
 }
 
 # Generate an OpenPGP key for the input address
-_keys_new() {
+_keys_new_batch() {
   local \
     _gnupg_home="${1}" \
     _email="${2}" \
@@ -128,28 +128,40 @@ _keys_new() {
     "%echo Generating key pair for '${_name}'..."
     # ECC + Kyber
     # "Key-Type: DSA"
-    "Key-Type: 18"
+    # "Key-Type: 8"
     # "Key-Type: default"
     # "Key-Type: eddsa"
     # "Key-Type: ECDSA"
-    # "Key-Type: ecc+kyber"
+    # "Key-Type: dsa"
+    # "Key-Type: dil3"
+    # "Key-Type: dil5"
+    "Key-Type: ecc+kyber"
     # "Key-Type: ed25519"
     # "Key-Type: ecdh"
     # "Key-Type: brainpoolP256r1"
-    "Key-Curve: ed25519"
+    # "Key-Curve: ed25519"
     # "Key-Curve: kyber"
+    # RSA length
     # "Key-Length: 8096"
+    # ED25519 length
+    # "Key-Length: 1024"
+    # "Key-Length: 2048"
     # "Key-Usage: sign"
     # "SubKey-Type: ecdh"
     # "SubKey-Type: brainpoolP256r1"
+    # "SubKey-Type: ky768_bp256"
     # "SubKey-Type: ky1024_cv448"
-    "SubKey-Type: 8"
+    # "SubKey-Type: 8"
+    # "SubKey-Type: Kyber"
     # "SubKey-Type: kyber"
+    # "SubKey-Type: kyber768"
     # "SubKey-Length: 768"
     # "SubKey-Curve: bp256"
     # "SubKey-Curve: ky768_bp256"
     # "SubKey-Curve: kyber"
+    # "SubKey-Curve: ed25519"
     # "SubKey-Curve: ky1024_cv448"
+    # "SubKey-Curve: brainpoolP256r1"
     # "SubKey-Curve: 4"
     "SubKey-Usage: encrypt"
     "Name-Real: ${_name}"
@@ -192,12 +204,125 @@ $(printf \
     '%s\n' \
     "${_gpg_conf_array[@]}")
 __EOF__
-gpg \
-  "${_gpg_opts[@]}" <<EOF
+  gpg \
+    "${_gpg_opts[@]}" <<EOF
 $(printf \
     '%s\n' \
     "${_gpg_generate_array[@]}")
 EOF
+}
+
+# Generate an OpenPGP key for the input address
+_keys_new_quick() {
+  local \
+    _gnupg_home="${1}" \
+    _email="${2}" \
+    _name="${3}" \
+    _passphrase="${4}" \
+    _comment="${5}" \
+    _cipher_sign \
+    _cipher_encrypt \
+    _gpg_conf_array=() \
+    _gpg_generate_array=() \
+    _gpg_opts=() \
+    _gpg_gen \
+    _key_new_fingerprint \
+    _key_new_fingerprint_small
+  # Seems not implemented
+  # _cipher_sign="dil5"
+  _cipher_sign="ed25519"
+  _cipher_encrypt="ky1024_cv448"
+  _ed25519_msg=(
+    "gpg:"
+      'EDDSA/SHA512 signature from: "'
+  )
+  if [[ "${quiet}" == "n" ]]; then
+    _gpg_opts+=(
+      --verbose
+    )
+  fi
+  _gpg_conf_array+=(
+    "quiet"
+    "batch"
+    "no-tty"
+    "no-permission-warning"
+    "export-options no-export-attributes,export-clean"
+    "list-options no-show-keyring"
+    "armor"
+    "no-emit-version"
+    "require-pqc-encryption"
+  )
+  _gpg_opts+=(
+    --compliance="gnu"
+    --homedir
+      "${_gnupg_home}"
+  )
+  _gpg_gen_opts+=(
+    "${_gpg_opts[@]}"
+    --passphrase
+      "${_passphrase}"
+    --quick-generate-key
+  )
+  _gpg_edit_opts+=(
+    "${_gpg_opts[@]}"
+    --passphrase
+      "${_passphrase}"
+    --quick-add-key 
+  )
+  _gpg_gen_args+=(
+    "${_name} (${_comment}) <${_email}>"
+    "${_cipher_sign}"
+  )
+  mkdir \
+    -p \
+    "${_gnupg_home}"
+  chmod \
+    700 \
+    "${_gnupg_home}"
+  cat << \
+    __EOF__ > \
+      "${_gnupg_home}"/gpg.conf
+$(printf \
+    '%s\n' \
+    "${_gpg_conf_array[@]}")
+__EOF__
+  _gpg_gen="$(
+    gpg \
+      "${_gen_gpg_opts[@]}" \
+      "${_gpg_args[@]}")"
+  _key_new_fingerprint_small="$(
+    echo \
+      "${_gpg_gen}" |
+      grep \
+        "${_ed25519_msg[*]}" |
+        head \
+          -n \
+            1 |
+        sed \
+          "s%${_ed25519_msg[*]}%%g" |
+          awk \
+            '{print $1}')"
+  _key_new_fingerprint="$(
+    gpg \
+      "${_gpg_opts[@]}" \
+      list-keys |
+      grep \
+        "${_key_new_fingerprint_small}")"
+  _gpg_edit_args+=(
+    "${_key_fingerprint}"
+    "${_cipher_encrypt}"
+  )
+  _msg=(
+    "New ED25519 key fingerprint: '${_key_new_fingerprint}'"
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _gpg_edit_args=(
+    "${_key_new_fingerprint}"
+  )
+  gpg \
+    "${_gpg_edit_opts[@]}" \
+    "${_gpg_edit_args[@]}"
 }
 
 _keys_list() {
@@ -704,7 +829,7 @@ _keys_new_cmd() {
     _export_address
   _tmp_file="${_cache_dir}/temp.key"
   _keys_new_args_parse
-  _keys_new \
+  _keys_new_quick \
     "${_gnupg_home}" \
     "${_email}" \
     "${_full_name}" \
