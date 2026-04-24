@@ -253,7 +253,7 @@ _keys_new_quick() {
     "require-pqc-encryption"
   )
   _gpg_opts+=(
-    --compliance="gnu"
+    --compliance="gnupg"
     --homedir
       "${_gnupg_home}"
   )
@@ -288,8 +288,8 @@ $(printf \
 __EOF__
   _gpg_gen="$(
     gpg \
-      "${_gen_gpg_opts[@]}" \
-      "${_gpg_args[@]}")"
+      "${_gpg_gen_opts[@]}" \
+      "${_gpg_gen_args[@]}")"
   _key_new_fingerprint_small="$(
     echo \
       "${_gpg_gen}" |
@@ -305,18 +305,21 @@ __EOF__
   _key_new_fingerprint="$(
     gpg \
       "${_gpg_opts[@]}" \
-      list-keys |
+      --list-keys |
       grep \
         "${_key_new_fingerprint_small}")"
-  _gpg_edit_args+=(
-    "${_key_fingerprint}"
-    "${_cipher_encrypt}"
-  )
   _msg=(
-    "New ED25519 key fingerprint: '${_key_new_fingerprint}'"
+    "New ED25519 key fingerprint:"
+    "'${_key_new_fingerprint}'."
+    "Creating encryption subkey"
+    "with algorithm '${_cipher_encrypt}'."
   )
   _msg_info \
     "${_msg[*]}"
+  _gpg_edit_args+=(
+    "${_key_new_fingerprint}"
+    "${_cipher_encrypt}"
+  )
   _gpg_edit_args=(
     "${_key_new_fingerprint}"
   )
