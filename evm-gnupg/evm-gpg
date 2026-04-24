@@ -269,8 +269,19 @@ _keys_new_quick() {
       "${_passphrase}"
     --quick-add-key 
   )
+  _gpg_quick_gen_arg=(
+    "${_name}"
+  )
+  if [[ "${_comment}" != "" ]]; then
+    _gpg_quick_gen_arg+=(
+      "(${_comment})"
+    )
+  fi
+  _gpg_quick_gen_arg+=(
+    "<${_email}>"
+  )
   _gpg_gen_args+=(
-    "${_name} (${_comment}) <${_email}>"
+    "${_gpg_quick_gen_arg[*]}"
     "${_cipher_sign}"
   )
   mkdir \
@@ -289,7 +300,8 @@ __EOF__
   _gpg_gen="$(
     gpg \
       "${_gpg_gen_opts[@]}" \
-      "${_gpg_gen_args[@]}")"
+      "${_gpg_gen_args[@]}" \
+      2>&1)"
   _key_new_fingerprint_small="$(
     echo \
       "${_gpg_gen}" |
@@ -319,9 +331,6 @@ __EOF__
   _gpg_edit_args+=(
     "${_key_new_fingerprint}"
     "${_cipher_encrypt}"
-  )
-  _gpg_edit_args=(
-    "${_key_new_fingerprint}"
   )
   gpg \
     "${_gpg_edit_opts[@]}" \
@@ -1412,7 +1421,7 @@ _set_overrides() {
   _set_override \
     "key" \
     "publish" \
-    "y"
+    "n"
 }
 
 # Show help usage, with an exit status.
@@ -1495,7 +1504,7 @@ Usage:
                             Default: ${key_passphrase}
      -C <comment>           Key comment (for 'new' command).
                             Default: ${key_comment}
-     -S                     If enabled, automatically publishes
+     -S <y/n>               If enabled, automatically publishes
                             the newly key on the EVM OpenPGP
                             Key Server.
                             Default: ${key_publish}
@@ -1597,7 +1606,7 @@ _requirements
 getopts_opts="$(
   printf \
     "%s" \
-    "a:SH:P:C:Qt:i:o:" \
+    "a:S:H:P:C:Qt:i:o:" \
     "C:" \
     "$(_libevm_app_getopts_params_get)" \
     "n:" \
