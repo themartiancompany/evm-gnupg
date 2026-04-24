@@ -103,6 +103,11 @@ _keys_new() {
     _gpg_conf_array=() \
     _gpg_generate_array=() \
     _gpg_opts=()
+  if [[ "${quiet}" == "n" ]]; then
+    _gpg_opts+=(
+      --verbose
+    )
+  fi
   _gpg_opts+=(
     --homedir
     "${_gnupg_home}"
@@ -117,17 +122,35 @@ _keys_new() {
     "list-options no-show-keyring"
     "armor"
     "no-emit-version"
-    # "require-pqc-encryption"
+    "require-pqc-encryption"
   )
   _gpg_generate_array+=(
     "%echo Generating key pair for '${_name}'..."
+    # ECC + Kyber
+    # "Key-Type: DSA"
+    "Key-Type: 18"
+    # "Key-Type: default"
     # "Key-Type: eddsa"
-    "Key-Type: kyber1024"
-    # "Key-Curve: ed25519"
-    # "Key-Length: 4096"
-    "Key-Usage: sign"
+    # "Key-Type: ECDSA"
+    # "Key-Type: ecc+kyber"
+    # "Key-Type: ed25519"
+    # "Key-Type: ecdh"
+    # "Key-Type: brainpoolP256r1"
+    "Key-Curve: ed25519"
+    # "Key-Curve: kyber"
+    # "Key-Length: 8096"
+    # "Key-Usage: sign"
     # "SubKey-Type: ecdh"
-    # "SubKey-Curve: cv25519"
+    # "SubKey-Type: brainpoolP256r1"
+    # "SubKey-Type: ky1024_cv448"
+    "SubKey-Type: 8"
+    # "SubKey-Type: kyber"
+    # "SubKey-Length: 768"
+    # "SubKey-Curve: bp256"
+    # "SubKey-Curve: ky768_bp256"
+    # "SubKey-Curve: kyber"
+    # "SubKey-Curve: ky1024_cv448"
+    # "SubKey-Curve: 4"
     "SubKey-Usage: encrypt"
     "Name-Real: ${_name}"
   )
