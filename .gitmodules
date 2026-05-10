@@ -1,3 +1,6 @@
 [submodule "docs"]
 	path = docs
 	url = https://github.com/themartiancompany/evm-gnupg-docs
+[submodule "man"]
+	path = man
+	url = https://github.com/themartiancompany/evm-gnupg-man
