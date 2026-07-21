@@ -4,3 +4,6 @@
 [submodule "man"]
 	path = man
 	url = https://github.com/themartiancompany/evm-gnupg-man
+[submodule "evm-gnupg/nodejs"]
+	path = evm-gnupg/nodejs
+	url = https://github.com/themartiancompany/evm-gnupg.js
