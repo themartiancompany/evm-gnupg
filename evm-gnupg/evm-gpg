@@ -1626,6 +1626,7 @@ _show_config() {
   _msg_info "           Target command:   ${target_command}"
   _msg_info "              Command key:   ${command_key}"
   _msg_info "            Command value:   ${command_value}"
+  _msg_info "           GNUPG backends:   ${gnupg_backends[*]}"
   _msg_info "         Receive options:"
   _msg_info "               Input type:   ${input_type}"
   _msg_info "           List options:"
