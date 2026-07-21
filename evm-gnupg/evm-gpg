@@ -50,6 +50,8 @@ _global_variables() {
   wallet_address=""
   gnupg_home=""
   gnupg_public=""
+  gnupg_backends=()
+  gnupg_backends_amount=""
   input_type=""
   output_type=""
   key_passphrase=""
@@ -1056,25 +1058,35 @@ _evm_gpg() {
     _wallet_address="${5}" \
     _gnupg_home="${6}" \
     _gnupg_public="${7}" \
-    _key_passphrase="${8}" \
-    _key_comment="${9}" \
-    _with_colons="${10}" \
-    _input_type="${11}" \
-    _output_type="${12}" \
-    _key_type="${13}" \
-    _key_publish="${14}" \
-    _cache_dir="${15}" \
-    _target_command="${16}" \
-    _command_key="${17}" \
-    _command_value="${18}" \
+    _gnupg_backends_amount="${8}" \
+    _key_passphrase="${9}" \
+    _key_comment="${10}" \
+    _with_colons="${11}" \
+    _input_type="${12}" \
+    _output_type="${13}" \
+    _key_type="${14}" \
+    _key_publish="${15}" \
+    _cache_dir="${16}" \
+    _target_command="${17}" \
+    _command_key="${18}" \
+    _command_value="${19}" \
     _commands_available=() \
     _command_args=() \
     _args=() \
+    _backend \
     _gnupg_public \
     _command \
     _command_flag
   shift \
-    18
+    19
+  for _backend \
+    in $(seq \
+            "${_gnupg_backends_amount}"); do
+    _gnupg_backends+=(
+      "$1"
+    )
+    shift
+  done
   _command_args+=(
     "$@"
   )
@@ -1372,6 +1384,15 @@ _wallet_address_auto_detect() {
     "${_wallet_address}"
 }
 
+_gnupg_backends_auto_detect() {
+  if [[ "${gnupg_backends[*]}" == "" ]]; then
+    gnupg_backends+=(
+      "gnupg"
+      "gnupg.js"
+    )
+  fi
+}
+
 _set_overrides() {
   local \
     _msg=() \
@@ -1443,6 +1464,7 @@ _set_overrides() {
     "key" \
     "publish" \
     "n"
+  gnupg_backends_amount="${#gnupg_backends[@]}"
 }
 
 # Show help usage, with an exit status.
@@ -1554,6 +1576,11 @@ Usage:
      -s <wallet-seed>       Wallet seed path.
                             Default: ${wallet_seed}
 
+  application options:
+     -B <gnupg-backend>     GNUPG application backends.
+                            Default: '${gnupg_backends[*]}'.
+     -W <cache-dir>         Work directory.
+
      -h                     This message.
      -c                     Enable color output
      -v                     Enable verbose output
@@ -1632,7 +1659,7 @@ getopts_opts="$(
     "$(_libevm_app_getopts_params_get)" \
     "n:" \
     "$(_wallet_getopts_params_get)" \
-    "W:cvh")"
+    "B:W:cvh")"
 # shellcheck disable=SC2034
 while \
   getopts \
@@ -1660,6 +1687,10 @@ while \
       override_key_publish="${OPTARG}" ;;
     H)
       override_gnupg_home="${OPTARG}" ;;
+    B)
+      gnu_backends+=(
+        "${OPTARG}"
+      );;
     W)
       override_cache_dir="${OPTARG}" ;;
     c)
@@ -1723,6 +1754,7 @@ app_opts=(
   "${wallet_address}"
   "${gnupg_home}"
   "${gnupg_public}"
+  "${gnupg_backends_amount}"
   "${key_passphrase}"
   "${key_comment}"
   "${with_colons}"
@@ -1734,6 +1766,7 @@ app_opts=(
   "${target_command}"
   "${command_key}"
   "${command_value}"
+  "${gnupg_backends[@]}"
   "${command_args[@]}"
 )
 _evm_gpg \
