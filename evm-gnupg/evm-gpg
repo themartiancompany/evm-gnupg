@@ -1083,7 +1083,7 @@ _evm_gpg() {
     in $(seq \
             "${_gnupg_backends_amount}"); do
     _gnupg_backends+=(
-      "$1"
+      "${1}"
     )
     shift
   done
@@ -1459,6 +1459,10 @@ _set_overrides() {
     "output" \
     "type" \
     "full"
+  _set_override \
+    "gpg" \
+    "backend" \
+    "gpg"
   _input_type_auto_detect
   _set_override \
     "key" \
@@ -1655,7 +1659,7 @@ _requirements
 getopts_opts="$(
   printf \
     "%s" \
-    "a:S:H:P:C:Qt:i:o:" \
+    "a:S:H:P:C:Qt:i:o:b:" \
     "C:" \
     "$(_libevm_app_getopts_params_get)" \
     "n:" \
