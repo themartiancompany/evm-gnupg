@@ -1,0 +1,1780 @@
+#!/usr/bin/env bash
+
+# SPDX-License-Identifier: AGPL-3.0
+
+#    -----------------------------------------------------
+#    Copyright © 2024, 2025, 2026  Pellegrino Prevete
+#
+#    All rights reserved
+#    -----------------------------------------------------
+#
+#    This program is free software: you can redistribute
+#    it and/or modify it under the terms of the
+#    GNU Affero General Public License as published by
+#    the Free Software Foundation, either version 3 of
+#    the License, or (at your option) any later version.
+#
+#    This program is distributed in the hope that it
+#    will be useful, but WITHOUT ANY WARRANTY;
+#    without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#    See the GNU Affero General Public License for
+#    more details.
+#
+#    You should have received a copy of the
+#    GNU Affero General Public License
+#    along with this program.
+#    If not, see <https://www.gnu.org/licenses/>.
+
+_bin="$(
+  dirname \
+    "$(command \
+         -v \
+         "env")")"
+_lib="$(
+  realpath \
+    "${_bin}/../lib")"
+_crash_bash="${_lib}/libcrash-bash/crash-bash"
+_libevm="${_lib}/libevm/libevm"
+_sourced \
+  "${_crash_bash}" \
+  2>"/dev/null" || \
+  source \
+  "${_crash_bash}"
+_sourced \
+  "${_libevm}"
+
+# shellcheck disable=SC2034
+_global_variables() {
+  call_date=""
+  wallet_address=""
+  gnupg_home=""
+  gnupg_public=""
+  gnupg_backends=()
+  gnupg_backends_amount=""
+  input_type=""
+  output_type=""
+  key_passphrase=""
+  key_type=""
+  key_publish=""
+  key_comment=""
+  target_command=""
+  command_key=""
+  command_value=""
+  with_colons=""
+  command_args=()
+  cache_dir=""
+  color=""
+  quiet=""
+}
+
+_requirements() {
+  _check_cmd \
+    'libevm-requirements'
+  libevm-requirements
+  _check_cmd \
+    'evm-wallet'
+  _check_cmd \
+    "evm-openpgp-key-publish" \
+    "evm-openpgp-keyserver"
+  _check_cmd \
+    "evm-openpgp-key-receive" \
+    "evm-openpgp-keyserver"
+  }
+
+_get_conf_dir_path() {
+  local \
+    _dir
+  _dir="${HOME}/.config/evm-gnupg"
+  echo \
+    "${_dir}"
+}
+
+_get_data_dir_path() {
+  local \
+    _dir
+  _dir="${HOME}/.local/share/evm-gnupg"
+  echo \
+    "${_dir}"
+}
+
+# Generate an OpenPGP key for the input address
+_keys_new_batch() {
+  local \
+    _gnupg_home="${1}" \
+    _email="${2}" \
+    _name="${3}" \
+    _passphrase="${4}" \
+    _comment="${5}" \
+    _gpg_conf_array=() \
+    _gpg_generate_array=() \
+    _gpg_opts=()
+  if [[ "${quiet}" == "n" ]]; then
+    _gpg_opts+=(
+      --verbose
+    )
+  fi
+  _gpg_opts+=(
+    --homedir
+    "${_gnupg_home}"
+    --gen-key
+  )
+  _gpg_conf_array+=(
+    "quiet"
+    "batch"
+    "no-tty"
+    "no-permission-warning"
+    "export-options no-export-attributes,export-clean"
+    "list-options no-show-keyring"
+    "armor"
+    "no-emit-version"
+    "require-pqc-encryption"
+  )
+  _gpg_generate_array+=(
+    "%echo Generating key pair for '${_name}'..."
+    # ECC + Kyber
+    # "Key-Type: DSA"
+    # "Key-Type: 8"
+    # "Key-Type: default"
+    # "Key-Type: eddsa"
+    # "Key-Type: ECDSA"
+    # "Key-Type: dsa"
+    # "Key-Type: dil3"
+    # "Key-Type: dil5"
+    "Key-Type: ecc+kyber"
+    # "Key-Type: ed25519"
+    # "Key-Type: ecdh"
+    # "Key-Type: brainpoolP256r1"
+    # "Key-Curve: ed25519"
+    # "Key-Curve: kyber"
+    # RSA length
+    # "Key-Length: 8096"
+    # ED25519 length
+    # "Key-Length: 1024"
+    # "Key-Length: 2048"
+    # "Key-Usage: sign"
+    # "SubKey-Type: ecdh"
+    # "SubKey-Type: brainpoolP256r1"
+    # "SubKey-Type: ky768_bp256"
+    # "SubKey-Type: ky1024_cv448"
+    # "SubKey-Type: 8"
+    # "SubKey-Type: Kyber"
+    # "SubKey-Type: kyber"
+    # "SubKey-Type: kyber768"
+    # "SubKey-Length: 768"
+    # "SubKey-Curve: bp256"
+    # "SubKey-Curve: ky768_bp256"
+    # "SubKey-Curve: kyber"
+    # "SubKey-Curve: ed25519"
+    # "SubKey-Curve: ky1024_cv448"
+    # "SubKey-Curve: brainpoolP256r1"
+    # "SubKey-Curve: 4"
+    "SubKey-Usage: encrypt"
+    "Name-Real: ${_name}"
+  )
+  if [[ "${_comment}" != "" ]]; then
+    _gpg_generate_array+=(
+      "Name-Comment: ${_comment}"
+    )
+  fi
+  _gpg_generate_array+=(
+    "Name-Email: ${_email}"
+  )
+  if [[ "${_passphrase}" != "" ]]; then
+    _gpg_generate_array+=(
+      "Passphrase: ${_passphrase}"
+    )
+  fi
+  _gpg_generate_array+=(
+    "Expire-Date: 0"
+  )
+  if [[ "${_passphrase}" == "" ]]; then
+    _gpg_generate_array+=(
+      "%no-protection"
+    )
+  fi
+  _gpg_generate_array+=(
+    "%commit"
+    "%echo Done"
+  )
+  mkdir \
+    -p \
+    "${_gnupg_home}"
+  chmod \
+    700 \
+    "${_gnupg_home}"
+  cat << \
+    __EOF__ > \
+      "${_gnupg_home}"/gpg.conf
+$(printf \
+    '%s\n' \
+    "${_gpg_conf_array[@]}")
+__EOF__
+  gpg \
+    "${_gpg_opts[@]}" <<EOF
+$(printf \
+    '%s\n' \
+    "${_gpg_generate_array[@]}")
+EOF
+}
+
+# Generate an OpenPGP key for the input address
+_keys_new_quick() {
+  local \
+    _gnupg_home="${1}" \
+    _email="${2}" \
+    _name="${3}" \
+    _passphrase="${4}" \
+    _comment="${5}" \
+    _cipher_sign \
+    _cipher_encrypt \
+    _gpg_conf_array=() \
+    _gpg_generate_array=() \
+    _gpg_opts=() \
+    _gpg_gen \
+    _gpg_edit \
+    _key_new_fingerprint \
+    _key_new_fingerprint_small
+  # Seems not implemented
+  # _cipher_sign="dil5"
+  _cipher_sign="ed25519"
+  _cipher_encrypt="ky1024_cv448"
+  _ed25519_msg=(
+    "gpg:"
+      'EDDSA/SHA512 signature from: "'
+  )
+  if [[ "${quiet}" == "n" ]]; then
+    _gpg_opts+=(
+      --verbose
+    )
+  fi
+  _gpg_conf_array+=(
+    "quiet"
+    "batch"
+    "no-tty"
+    "no-permission-warning"
+    "export-options no-export-attributes,export-clean"
+    "list-options no-show-keyring"
+    "armor"
+    "no-emit-version"
+    "require-pqc-encryption"
+  )
+  _gpg_opts+=(
+    --compliance="gnupg"
+    --homedir
+      "${_gnupg_home}"
+  )
+  _gpg_gen_opts+=(
+    "${_gpg_opts[@]}"
+    --passphrase
+      "${_passphrase}"
+    --quick-generate-key
+  )
+  _gpg_edit_opts+=(
+    "${_gpg_opts[@]}"
+    --passphrase
+      "${_passphrase}"
+    --quick-add-key 
+  )
+  _gpg_quick_gen_arg=(
+    "${_name}"
+  )
+  if [[ "${_comment}" != "" ]]; then
+    _gpg_quick_gen_arg+=(
+      "(${_comment})"
+    )
+  fi
+  _gpg_quick_gen_arg+=(
+    "<${_email}>"
+  )
+  _gpg_gen_args+=(
+    "${_gpg_quick_gen_arg[*]}"
+    "${_cipher_sign}"
+  )
+  mkdir \
+    -p \
+    "${_gnupg_home}"
+  chmod \
+    700 \
+    "${_gnupg_home}"
+  cat << \
+    __EOF__ > \
+      "${_gnupg_home}"/gpg.conf
+$(printf \
+    '%s\n' \
+    "${_gpg_conf_array[@]}")
+__EOF__
+  _gpg_gen="$(
+    gpg \
+      "${_gpg_gen_opts[@]}" \
+      "${_gpg_gen_args[@]}" \
+      2>&1 || \
+      true)"
+  _msg=(
+    "Output of key generation:"
+    "'${_gpg_gen}'."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _key_new_fingerprint_small="$(
+    echo \
+      "${_gpg_gen}" |
+      grep \
+        "${_ed25519_msg[*]}" |
+        head \
+          -n \
+            1 |
+        sed \
+          "s%${_ed25519_msg[*]}%%g" |
+          awk \
+            '{print $1}')"
+  _key_new_fingerprint="$(
+    gpg \
+      "${_gpg_opts[@]}" \
+      --list-keys |
+      grep \
+        "${_key_new_fingerprint_small}")"
+  _msg=(
+    "New ED25519 key fingerprint:"
+    "'${_key_new_fingerprint}'."
+    "Creating encryption subkey"
+    "with algorithm '${_cipher_encrypt}'."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _gpg_edit_args+=(
+    "${_key_new_fingerprint}"
+    "${_cipher_encrypt}"
+  )
+  _gpg_edit="$(
+    gpg \
+      "${_gpg_edit_opts[@]}" \
+      "${_gpg_edit_args[@]}" \
+      2>&1 || \
+    true)"
+  _msg=(
+    "Output of key edit:"
+    "'${_gpg_edit}'."
+  )
+  _msg_info \
+    "${_msg[*]}"
+}
+
+_keys_list() {
+  local \
+    _gnupg_home="${1}" \
+    _output_type="${2}" \
+    _query="${3}" \
+    _gpg_opts=() \
+    _gpg_key_info_opts=() \
+    _gpg_key_info_output_type \
+    _list \
+    _out \
+    _gpg_out \
+    _key
+  _out=""
+  _key="${_cache_dir}/key.asc"
+  _gpg_opts+=(
+    --homedir
+    "${_gnupg_home}"
+  )
+  if [[ "${_output_type}" == "fingerprint" ]]; then
+    _with_colons="y"
+  fi
+  if [[ "${_with_colons}" == "y" ]]; then
+    _gpg_opts+=(
+      --with-colons
+    )
+  fi
+  if [[ "${_output_type}" == "full" ]]; then
+    if [[ "${_key_type}" == "public" ]]; then
+      _list="--list-keys"
+    elif [[ "${_key_type}" == "private" ]]; then
+      _list="--list-secret-keys"
+    fi
+    _gpg_opts+=(
+      "${_list}"
+    )
+    if [[ "${_query}" != "" ]]; then
+      _gpg_opts+=(
+        "${_query}"
+      )
+    fi
+    _msg=(
+      "Running gpg with options"
+      "'${_gpg_opts[*]}'."
+    )
+    _msg_info \
+    "${_msg[*]}"
+    _out="$(
+      GNUPGHOME="${_gnupg_home}" \
+      gpg \
+        "${_gpg_opts[@]}" 2>/dev/null || \
+      true)"
+  else
+    if [[ "${_key_type}" == "public" ]]; then
+      _export="--export"
+    elif [[ "${_key_type}" == "private" ]]; then
+      _export="--export-secret-keys"
+    fi
+    _gpg_opts+=(
+      "${_export}"
+      --armor
+    )
+    if [[ "${_query}" != "" ]]; then
+      _gpg_opts+=(
+        "${_query}"
+      )
+    fi
+    _msg=(
+      "Running gpg with options"
+      "'${_gpg_opts[*]}'."
+    )
+    _msg_info \
+      "${_msg[*]}"
+    _gpg_out="$(
+      GNUPGHOME="${_gnupg_home}" \
+      gpg \
+        "${_gpg_opts[@]}" 2>/dev/null || \
+      true)"
+    if [[ "${_gpg_out}" != "" ]]; then
+      echo \
+        "${_gpg_out}" > \
+        "${_key}"
+      _gpg_key_info_output_type="${_output_type}"
+      if [[ "${_output_type}" == "address" ]]; then
+        _gpg_key_info_output_type="email"
+      fi
+      _gpg_key_info_opts+=(
+        -t
+          "${_key_type}"
+        -o
+          "${_gpg_key_info_output_type}"
+      )
+      _msg=(
+        "Running gpg-key-info with options"
+        "'${_gpg_key_info_opts[*]}'."
+      )
+      _msg_info \
+        "${_msg[*]}"
+      _out="$(
+        gpg-key-info \
+          "${_gpg_key_info_opts[@]}" \
+          "${_key}")"
+      if [[ "${_output_type}" == "address" ]]; then
+        _out="${_out##*@}"
+      fi
+    fi
+  fi
+  if [[ "${_out}" != "" ]]; then
+    _query_out+=(
+      "${_out}"
+    )
+  fi
+}
+
+_address_detect() {
+  local \
+    _address="${1}"
+  if (( 42 == "${_address}" && \
+        "${_address}" == "0x"* )); then
+    _msg=(
+      "Detected address type."
+    )
+    _msg_info \
+      "${_msg[*]}"
+    _address_sanity_check \
+      "${_address}"
+  fi
+}
+
+_keys_import() {
+  local \
+    _gnupg_home="${1}" \
+    _source_import="${2}" \
+    _export_opts=() \
+    _import_opts=() \
+    _export_secret \
+    _address
+  _import_opts+=(
+    --homedir
+      "${_gnupg_home}"
+    --import
+  )
+  if [[ -e "${_source_import}" ]]; then
+    gpg \
+      "${_import_opts[@]}" \
+      "${_source_import}"
+  elif [[ -d "${_source_import}" ]]; then
+    _export_secret="${_cache_dir}/secret.asc"
+    _export_opts+=(
+      --homedir
+        "${_source_import}"
+      --export-secret-key
+      --armor
+    )
+    gpg \
+      "${_export_opts[@]}" > \
+      "${_export_secret}"
+    gpg \
+      "${_import_opts[@]}" \
+      "${_export_secret}"
+    rm \
+      -rf \
+      "${_export_secret}"
+  else
+    _address_detect \
+      "${_source_import}"
+    if [[ "${_source_import}" != "" ]]; then
+      _msg=(
+        "Retrieving key from EVM"
+        "OpenPGP Key Server."
+      )
+      _msg_info \
+        "${_msg[*]}"
+      _keys_receive \
+        "${_gnupg_public}" \
+        "${_source_import}"
+    fi
+  fi
+}
+
+# _keys_names_get() {
+#   local \
+#     _gnupg_home="${1}" \
+#     _filter="${2}" \
+#     _gpg_out \
+#     _gpg_opts=() \
+#     _address
+#   _gpg_opts+=(
+#     --homedir
+#       "${_gnupg_home}"
+#     --with-colons
+#     --list-keys
+#     "@${_address}"
+#   )
+#   # awk \
+#   #  -F \
+#   #    ":" \
+#   #  '{print $1}'
+# }
+
+_keys_enumerate() {
+  local \
+    _gnupg_home="${1}" \
+    _wallet_address="${2}" \
+    _gpg_out \
+    _gpg_opts=()
+  _gpg_opts+=(
+    --homedir
+      "${_gnupg_home}"
+    --with-colons
+    --list-keys
+    "@${_address}"
+  )
+  _keys_amount="$(
+    gpg \
+      "${_gpg_opts[@]}" | \
+      grep \
+        "\buid:" | \
+        wc \
+          -l)"
+}
+
+_gpg_export() {
+  local \
+    _gnupg_home="${1}" \
+    _out_file="${2}" \
+    _key_type="${3}" \
+    _query="${4}" \
+    _gpg_opts=() \
+    _out_dir \
+    _export_opt
+  if [[ "${_key_type}" == "" ]]; then
+    _msg=(
+      "Export type not set,"
+      "selecting 'public key'."
+    )
+    _msg_info \
+      "${_msg[*]}"
+    _key_type="public"
+  fi
+  _gpg_opts+=(
+    --homedir
+      "${_gnupg_home}"
+  )
+  if [[ "${_key_type}" == "public" ]]; then
+    _export_opt="--export"
+  elif [[ "${_key_type}" == "private" ]]; then
+    _export_opt="--export-secret-keys"
+  else
+    _msg=(
+      "Unknown key export type"
+      "'${_key_type}'."
+      "Valid values are 'public'"
+      "and 'private'."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+  _gpg_opts+=(
+    "${_export_opt}"
+  )
+  if [[ "${_out_file}" != "" ]]; then
+    _out_dir="$(
+      dirname \
+        "${_out_file}")"
+    if [[ ! -d "${_out_dir}" ]]; then
+      _msg=(
+        "Directory '${_out_dir}'"
+        "does not exist."
+      )
+      _msg_error \
+        "${_msg[*]}" \
+        1
+    fi
+    _gpg_opts+=(
+      --output
+        "${_out_file}"
+    )
+  fi
+  _gpg_opts+=(
+    --armor
+    "${_query}"
+  )
+  gpg \
+    "${_gpg_opts[@]}"
+}
+
+_keys_export() {
+  local \
+    _gnupg_home="${1}" \
+    _wallet_address="${2}" \
+    _wallet_name="${3}" \
+    _out_file="${4}" \
+    _key_type="${5}" \
+    _gpg_opts=() \
+    _export_opts=() \
+    _import_opts=() \
+    _export_secret \
+    _keys_amount \
+    _address
+  _address="${_wallet_address}"
+  _keys_enumerate \
+    "${_gnupg_home}" \
+    "${_address}"
+  if (( 0 == "${_keys_amount}" )); then
+    _msg=(
+      "No GPG keys found for wallet"
+      "'${_wallet_name}' with address"
+      "${_address}"
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  elif (( 1 < "${_keys_amount}" )); then
+    _msg=(
+      "Found more than a key"
+      "for account '${_wallet_name}'"
+      "with address '${_address}'."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+  _gpg_export \
+    "${_gnupg_home}" \
+    "${_out_file}" \
+    "${_key_type}" \
+    "@${_address}"
+}
+
+_keys_receive() {
+  local \
+    _gnupg_home="${1}" \
+    _command_key="${2}" \
+    _command_value="${3}" \
+    _contact_name \
+    _evm_openpgp_key_receive_opts=() \
+    _evm_openpgp_key_receive_args=() \
+    _receive_input_type \
+    _key \
+    _address
+  if [[ "${quiet}" == "n" ]]; then
+    _evm_openpgp_key_receive_opts+=(
+      -v
+    )
+  fi
+  _evm_openpgp_key_receive_opts+=(
+    -H
+      "${_gnupg_home}"
+    -f
+      "y"
+  )
+  if [[ "${_input_type}" == "auto" ]]; then
+    _receive_input_type=""
+  elif [[ "${_input_type}" == "address" ]]; then
+    _receive_input_type="number"
+    _evm_openpgp_key_receive_args+=(
+      "${_command_key}"
+      "${_command_value}"
+    )
+  elif [[ "${_input_type}" == "fingerprint" ]]; then
+    _receive_input_type="fingerprint"
+    _fingerprint="${_command_key}"
+    _evm_openpgp_key_receive_args+=(
+      "${_fingerprint}"
+    )
+  elif [[ "${_input_type}" == "contact" ]]; then
+    _receive_input_type="number"
+    _contact_name="${_command_key}"
+    _address="$(
+      evm-wallet \
+        get \
+        "${_contact_name}" \
+        "address")"
+    _evm_openpgp_key_receive_args+=(
+      "${_address}"
+    )
+  else
+    _msg=(
+      "Unknown input type '${_receive_input_type}'."
+    )
+  fi
+  # _evm_openpgp_key_receive_opts+=(
+  #   -P
+  #     "${_key}"
+  #   -o
+  #     "${_gnupg_public}"
+  # )
+  if [[ "${_receive_input_type}" != "" ]]; then
+    _evm_openpgp_key_receive_opts+=(
+      -t
+        "${_receive_input_type}"
+    )
+  fi
+  evm-openpgp-key-receive \
+    "${_evm_openpgp_key_receive_opts[@]}" \
+    "${_evm_openpgp_key_receive_args[@]}"
+}
+
+_keys_publish() {
+  local \
+    _gnupg_home="${1}" \
+    _fingerprint="${2}" \
+    _contact_name \
+    _evm_openpgp_key_publish_opts=() \
+    _publish_input_type \
+    _key \
+    _address \
+    _msg=()
+  _msg=(
+    "Publishing key '${_fingerprint}'"
+    "with account '${_wallet_name}'."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _publish_input_type="fingerprint"
+  if [[ "${quiet}" == "n" ]]; then
+    _evm_openpgp_key_publish_opts+=(
+      -v
+    )
+  fi
+  _evm_openpgp_key_publish_opts+=(
+    -N
+      "${_wallet_name}"
+    -H
+      "${_gnupg_home}"
+    -t
+      "${_publish_input_type}"
+  )
+  _msg=(
+    "Running 'evm-openpgp-key-publish'"
+    "with options '${_evm_openpgp_key_publish_opts[*]}"
+    "${_fingerprint}'."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  evm-openpgp-key-publish \
+    "${_evm_openpgp_key_publish_opts[@]}" \
+    "${_wallet_address}" \
+    "${_fingerprint}"
+}
+
+_output_type_check() {
+  local \
+    _output_types=()
+  _output_types+=(
+    "address"
+    "email"
+    "fingerprint"
+    "name"
+    "full"
+  )
+  if [[ " ${_output_types[*]} " != *" ${output_type} "* ]]; then
+    _msg=(
+      "Unknown output type"
+      "'${output_type}'."
+      "Valid types are"
+      "'address,' 'email', 'fingeprint'"
+      "and 'name'."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+}
+
+_keys_new_args_parse() {
+  local \
+    _evm_wallet_args=()
+  _evm_wallet_args+=(
+     get
+       "${_wallet_name}"
+       "address"
+  )
+  _address="$(
+    evm-wallet \
+      "${_evm_wallet_args[@]}")"
+  _name="${_command_key}"
+  _email="${_name}@${_address}"
+  _full_name="${_command_value}"
+}
+
+_gnupg_public_setup() {
+  _gnupg_public="${HOME}/.local/share/evm-gnupg/gnupg"
+  mkdir \
+    -p \
+    "${_gnupg_public}"
+  chmod \
+    700 \
+    "${_gnupg_public}"
+}
+
+_keys_new_cmd() {
+  local \
+    _address \
+    _name \
+    _email \
+    _full_name \
+    _tmp_file \
+    _query \
+    _fingerprints=() \
+    _export_address
+  _tmp_file="${_cache_dir}/temp.key"
+  _keys_new_args_parse
+  _keys_new_quick \
+    "${_gnupg_home}" \
+    "${_email}" \
+    "${_full_name}" \
+    "${_key_passphrase}" \
+    "${_key_comment}"
+  _export_address="$(
+    evm-wallet \
+      get \
+        "${_wallet_name}" \
+        "address")"
+  _keys_export \
+    "${_gnupg_home}" \
+    "${_export_address}" \
+    "${_wallet_name}" \
+    "${_tmp_file}" \
+    "public"
+  _keys_import \
+    "${_gnupg_public}" \
+    "${_tmp_file}"
+  rm \
+    "${_tmp_file}"
+  if [[ "${_key_publish}" == "y" ]]; then
+    _keys_list \
+      "${_gnupg_home}" \
+      "fingerprint" \
+      "@${_wallet_address}"
+    _array_set \
+      "_query_out" \
+      "_fingerprints"
+    _keys_publish \
+      "${_gnupg_public}" \
+      "${_fingerprints[0]}"
+  fi
+}
+
+_query_get() {
+  local \
+    _address
+  _query="${_command_key}"
+  _address=""
+  if [[ "${_wallet_name}" != "" ]]; then
+    _address="$(
+      evm-wallet \
+       get \
+         "${_wallet_name}" \
+         "address")"
+  fi
+  if [[ "${_wallet_address}" != "" ]]; then
+    _address="${_wallet_address}"
+  fi
+  if [[ "${_query}" == "" && \
+        "${_address}" != "" ]]; then
+    _query="@${_address}"
+  fi
+}
+
+_keys_list_cmd() {
+  local \
+    _query \
+    _query_out=() \
+    _result \
+    _results=()
+  _query_get
+  if [[ "${_output_type}" == "full" && \
+        "${_with_colons}" == "n" ]]; then
+    _query_out+=(
+      ""
+      "GNUPG private home directory ('${_gnupg_home}')"
+      ""
+    )
+  fi
+  _keys_list \
+    "${_gnupg_home}" \
+    "${_output_type}" \
+    "${_query}"
+  if [[ "${_output_type}" == "full" && \
+        "${_with_colons}" == "n" ]]; then
+    _query_out+=(
+      ""
+      "GNUPG public home directory ('${_gnupg_public}')"
+      ""
+    )
+  fi
+  _keys_list \
+    "${_gnupg_public}" \
+    "${_output_type}" \
+    "${_query}"
+  if (( "0" == "${#_query_out[@]}" )); then
+    return 1
+  fi
+  if [[ "${_output_type}" != "full" ]]; then
+    _array_set \
+      "_query_out" \
+      "_results"
+  else
+    _results=(
+      "${_query_out[@]}"
+    )
+  fi
+  for _result in "${_results[@]}"; do
+    echo \
+      "${_result}"
+  done
+}
+
+_keys_publish_cmd() {
+  local \
+    _fingerprint \
+    _query \
+    _query_out=() \
+    _result \
+    _results \
+    _output_type
+  _output_type="fingerprint"
+  _query_get
+  _keys_list \
+    "${_gnupg_home}" \
+    "${_output_type}" \
+    "${_query}"
+  _keys_list \
+    "${_gnupg_public}" \
+    "${_output_type}" \
+    "${_query}"
+  if (( "0" == "${#_query_out[@]}" )); then
+    _msg=(
+      "Found no keys for query"
+      "'${_query}'."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+  _array_set \
+    "_query_out" \
+    "_results"
+  for _fingerprint in "${_results[@]}"; do
+    _keys_publish \
+      "${_gnupg_public}" \
+      "${_fingerprint}"
+  done
+}
+
+_keys_export_cmd() {
+  local \
+    _address \
+    _out_file
+  _out_file="${_command_key}"
+  if (( 0 < "${#_command_args[@]}" )); then
+    _address="${_command_args[0]}"
+  else
+    _address="$(
+      evm-wallet \
+        get \
+          "${_wallet_name}" \
+          "address")"
+  fi
+  _keys_export \
+    "${_gnupg_home}" \
+    "${_address}" \
+    "${_wallet_name}" \
+    "${_out_file}" \
+    "${_key_type}"
+}
+
+_keys_receive_cmd() {
+  local \
+    _query=()
+  _query+=(
+    "${_command_key}"
+    "${_command_value}"
+  )
+  _keys_receive \
+    "${_gnupg_public}" \
+    "${_query[@]}"
+}
+
+_keys_import_cmd() {
+  local \
+    _source_import
+  _source_import="${_command_key}"
+  _keys_import \
+    "${_source_import}"
+}
+
+_evm_gpg() {
+  local \
+    _wallet_name="${1}" \
+    _wallet_path="${2}" \
+    _wallet_password="${3}" \
+    _wallet_seed="${4}" \
+    _wallet_address="${5}" \
+    _gnupg_home="${6}" \
+    _gnupg_public="${7}" \
+    _gnupg_backends_amount="${8}" \
+    _key_passphrase="${9}" \
+    _key_comment="${10}" \
+    _with_colons="${11}" \
+    _input_type="${12}" \
+    _output_type="${13}" \
+    _key_type="${14}" \
+    _key_publish="${15}" \
+    _cache_dir="${16}" \
+    _target_command="${17}" \
+    _command_key="${18}" \
+    _command_value="${19}" \
+    _commands_available=() \
+    _command_args=() \
+    _args=() \
+    _backend \
+    _gnupg_public \
+    _command \
+    _command_flag
+  shift \
+    19
+  for _backend \
+    in $(seq \
+            "${_gnupg_backends_amount}"); do
+    _gnupg_backends+=(
+      "${1}"
+    )
+    shift
+  done
+  _command_args+=(
+    "$@"
+  )
+  _command_flag="false"
+  _commands_available=(
+    "export"
+    "import"
+    "list"
+    "new"
+    "publish"
+    "receive"
+  )
+  _output_type_check
+  _gnupg_public_setup
+  for _command in "${_commands_available[@]}"; do
+    if [[ "${_command}" == "${_target_command}" ]]; then
+      "_keys_${_command}_cmd"
+      _command_flag="true"
+      break
+    fi
+  done
+  if [[ "${_command}" == "false" ]]; then
+    _msg=(
+      "Unknown command '${_target_command}'."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi 
+}
+
+_gnupg_home_auto_detect() {
+  local \
+    _type="${1}" \
+    _home \
+    _home_default \
+    _attribute_name \
+    _msg=()
+  _home=""
+  if [[ "${_type}" == "home" ]]; then
+    _home_default="$(
+      "_get_conf_dir_path")"
+  elif [[ "${_type}" == "public" ]]; then
+    _home_default="$(
+      "_get_data_dir_path")/gnupg"
+  else
+    _msg=(
+      "Unknown home type '${_type}'."
+      "Allowed values are 'home' and"
+      "'public'."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+  if [[ ! -v "override_gnupg_${_type}" ]]; then
+    if [[ ! -d "${_home}" ]]; then
+      mkdir \
+        -p \
+        "${_home_default}"
+      chmod \
+        700 \
+        "${_home_default}"
+    fi
+    _home="${_home_default}"
+  fi
+  _set_override \
+    "gnupg" \
+    "${_type}" \
+    "${_home}"
+}
+
+_command_key_check() {
+  local \
+    _msg=() \
+    _flag
+  _flag="false"
+  if [[ "${target_command}" == "new" ]]; then
+    if [[ "${command_key}" == "" ]]; then
+      _flag="true"
+      _msg=(
+        "You are creating a key without"
+        "setting an username."
+      )
+    fi
+  elif [[ "${target_command}" == "receive" ]]; then
+    if [[ "${command_key}" == "" ]]; then
+      _flag="true"
+      _msg=(
+        "You need to specify either"
+        "an address or a contact name"
+        "of which to retrieve the"
+        "OpenPGP keys."
+      )
+    fi
+  fi
+  if [[ "${_flag}" == "true" ]]; then
+    _msg_error \
+      "${_msg[*]}" \
+      0
+    _usage \
+      1
+  fi
+}
+
+_wallet_name_auto_detect() {
+  local \
+    _wallet_name
+  _wallet_name=""
+  if [[ "${target_command}" != "list" ]]; then
+    _wallet_name="default"
+  fi
+  if [[ "${target_command}" == "new" ]]; then
+    if [[ "${command_key}" != "" ]]; then
+      _wallet_name="${command_key}"
+    fi
+  fi
+  _set_override \
+    "wallet" \
+    "name" \
+    "${_wallet_name}"
+}
+
+_username_check() {
+  local \
+    _real_name \
+    _username \
+    _qr_wallet \
+    _msg=()
+  _username="${command_key}"
+  if [[ "${_username}" == "" ]]; then
+    _msg=(
+      "You are creating a key without"
+      "setting an user name."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      0
+    _usage \
+      1
+  fi
+  if [[ "${_username}" != "${wallet_name}" ]]; then
+    _qr_wallet="${HOME}/.config/evm-wallet/${_username}-qr-seed.txt"
+    if [[ -e "${_qr_wallet}" ]]; then
+      _msg=(
+        "Creating OpenPGP key with"
+        "username '${_username}' for"
+        "'${wallet_name}' QR-resistant"
+        "account managed by EVM Wallet."
+      )
+      _msg_info \
+        "${_msg[*]}"
+    else
+    _msg=(
+      "Creating OpenPGP key with"
+      "'${_username}' but there is no"
+      "'${wallet_name}' account managed"
+      "by EVM Wallet."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+    fi
+  fi
+}
+
+_key_passphrase_check() {
+  local \
+    _msg=()
+  if [[ "${key_passphrase}" == "" ]]; then
+    _msg=(
+      "You are creating a key without"
+      "a passphrase."
+    )
+    _msg_warning \
+      "${_msg[*]}"
+  fi
+}
+
+_contact_sanity_check() {
+  local \
+    _target_contact="${1}" \
+    _evm_wallet_opts=() \
+    _contacts_names=() \
+    _contacts_string \
+    _contact
+  _contact_assert="false"
+  _evm_wallet_opts+=(
+    -o
+      "name"
+  )
+  _contacts_string="$(
+    evm-wallet \
+      "${_evm_wallet_opts[@]}" \
+      list)"
+  IFS='\n' \
+  read \
+    -ra \
+    _contacts_names <<< "${_contacts_string}"
+  for _contact in "${_contacts_names[@]}"; do
+    if [[ "${_contact}" == "${_target_contact}" ]]; then
+      _contact_assert="true"
+      break
+    fi
+  done
+}
+
+_input_type_auto_detect() {
+  local \
+    _contact_assert \
+    _address_assert \
+    _input_type
+  _input_type=""
+  if [[ "${target_command}" == "receive" ]]; then
+    _address_assert="$(
+      _address_sanity_check \
+        "${command_key}" \
+        "0")"
+    if [[ "${_address_assert}" == "" ]]; then
+      _input_type="address"
+    elif [[ "${_address_assert}" != "" ]]; then
+      _contact_sanity_check \
+        "${command_value}"
+      if [[ "${_contact_assert}" == "true" ]]; then
+        _input_type="contact"
+      else
+        _msg=(
+          "Input is not a wallet address,"
+          "assuming it is a key fingerprint."
+        )
+        _msg_info \
+          "${_msg[*]}"
+        _input_type="fingerprint"
+      fi
+    fi
+  fi
+  _set_override \
+    "input" \
+    "type" \
+    "${_input_type}"
+}
+
+_cache_dir_auto_detect() {
+  local \
+    _dir
+  _dir="${HOME}/.cache/evm-gnupg"
+  if [[ ! -v "override_cache_dir" ]]; then
+    if [[ ! -d "${_dir}" ]]; then
+      mkdir \
+        -p \
+        "${_dir}"
+      chmod \
+        700 \
+        "${_dir}"
+    fi
+  fi
+  _set_override \
+    "cache" \
+    "dir" \
+    "${_dir}"
+}
+
+_wallet_address_auto_detect() {
+  local \
+    _wallet_address \
+    _msg=()
+  _wallet_address=""
+  if [[ "${wallet_name}" != "" ]]; then
+    _wallet_address="$(
+      evm-wallet \
+        get \
+          "${wallet_name}" \
+          "address")"
+  fi
+  if [[ -v "override_wallet_address" ]]; then
+    if [[ ! -v "override_wallet_name" ]]; then
+      wallet_name=""
+    elif [[ -v "override_wallet_name" ]]; then
+      if [[ "${_wallet_address}" != "${override_wallet_address}" ]]; then
+        _msg=(
+          "Address '${_wallet_address}'"
+          "corresponding to wallet '${_wallet_name}'"
+          "differs from input address"
+          "'${override_wallet_address}'."
+        )
+        _msg_error \
+          "${_msg[*]}" \
+          1
+      fi
+    fi
+  fi
+  _set_override \
+    "wallet" \
+    "address" \
+    "${_wallet_address}"
+}
+
+_gnupg_backends_auto_detect() {
+  if [[ "${gnupg_backends[*]}" == "" ]]; then
+    gnupg_backends+=(
+      "gnupg"
+      "gnupg.js"
+    )
+  fi
+}
+
+_set_overrides() {
+  local \
+    _msg=() \
+    _wallet_name
+  if [[ -v override_quiet ]]; then
+    quiet="${override_quiet}"
+  elif [[ -z "${quiet}" ]]; then
+    quiet="y"
+  fi
+  if [[ -v override_color ]]; then
+    color="${override_color}"
+  elif [[ -z "${color}" ]]; then
+    color="n"
+  fi
+  _set_override \
+    "call" \
+    "date" \
+    "$(_get_date_human)"
+  _cache_dir_auto_detect
+  _set_override \
+    "target" \
+    "command" \
+    "list"
+  _wallet_name_auto_detect
+  _wallet_overrides_set \
+    "evm-wallet" \
+    "${wallet_name}" \
+    "n" # "${call_auth}"
+  _wallet_address_auto_detect
+  _gnupg_home_auto_detect \
+    "home"
+  _gnupg_home_auto_detect \
+    "public"
+  _set_override \
+    "command" \
+    "key" \
+    ""
+  _set_override \
+    "command" \
+    "value" \
+    ""
+  _set_override \
+    "key" \
+    "passphrase" \
+    ""
+  _set_override \
+    "key" \
+    "comment" \
+    ""
+  _set_override \
+    "key" \
+    "type" \
+    "public"
+  _command_key_check
+  if [[ "${target_command}" == "new" ]]; then
+    _username_check
+    _key_passphrase_check
+  fi
+  _set_override \
+    "with" \
+    "colons" \
+    "n"
+  _set_override \
+    "output" \
+    "type" \
+    "full"
+  _set_override \
+    "gpg" \
+    "backend" \
+    "gpg"
+  _input_type_auto_detect
+  _set_override \
+    "key" \
+    "publish" \
+    "n"
+  gnupg_backends_amount="${#gnupg_backends[@]}"
+}
+
+# Show help usage, with an exit status.
+# $1: exit status number.
+_usage() {
+  local \
+    _usage_text
+  IFS='' \
+    read \
+      -r \
+      -d '' \
+      _usage_text << \
+        ENDUSAGETEXT || true
+
+GNUPG wrapper for use by the EVM Toolchain
+
+Usage:
+  ${app_name}
+    [options]
+    <command>
+    <key>
+    <value>
+
+  commands:
+    new
+      <username>
+      <full-name>
+    list
+      (<filter>)
+    import
+      <import-source>
+    export
+      (<out-file>)
+      (<key-type>)
+      (<address>)
+    publish
+      (<filter>)
+    receive
+      (<filter>)
+
+  list args:
+    filter                  The selection filter which is
+                            passed to gpg.
+
+  publish args:
+    filter                  Same as the other filter
+
+  list args:
+    filter                  It can be a OpenPGP key fingerprint,
+                            an EOA address or an EVM Wallet contact
+                            name respectively if the output type
+                            selected is 'fingerprint', 'address'
+                            or contact.
+
+  import sources:
+    directory               GNUPG home directory
+                            from which to import the key.
+    fingerprint             A key fingerprint.
+    file                    A key file.
+
+  key type:
+    public
+    private 
+
+  options:
+     -H <gnupg-home>        GNUPG home directory.
+                            Default: ${gnupg_home}
+     -K <gnupg-public>      Public keys keyring GNUPG
+                            home directory.
+                            Default: ${gnupg_public}
+     -t <key-type>          It can be empty, 'public'
+                            or 'private'.
+                            Default: ${key_type}
+     -Q                     If enabled, passes the '--with-colons'
+                            serializing option to GPG.
+                            Default: ${with_colons}
+
+  key creation options:
+     -P <passphrase>        Key passphrase (for 'new' command).
+                            Default: ${key_passphrase}
+     -C <comment>           Key comment (for 'new' command).
+                            Default: ${key_comment}
+     -S <y/n>               If enabled, automatically publishes
+                            the newly key on the EVM OpenPGP
+                            Key Server.
+                            Default: ${key_publish}
+
+  export options:
+     -a <address>           Export key corresponding to a specific address.
+                            Default: ${wallet_address}
+
+  list options:
+     -o <output-type>       It can be empty, 'fingerprint',
+                            'name' or 'email' or 'full'.
+                            Default: ${output_type}
+
+  receive options:
+     -i <input-type>        It can be 'auto', 'address',
+                            'contact'.
+                            Default: ${input_type}
+
+  credentials options:
+     -N <wallet-name>       Wallet name.
+                            Default: ${wallet_name}
+     -w <wallet-path>       Wallet path.
+                            Default: ${wallet_path}
+     -p <wallet-password>   Wallet password.
+                            Default: ${wallet_password}
+     -s <wallet-seed>       Wallet seed path.
+                            Default: ${wallet_seed}
+
+  application options:
+     -B <gnupg-backend>     GNUPG application backends.
+                            Default: '${gnupg_backends[*]}'.
+     -W <cache-dir>         Work directory.
+
+     -h                     This message.
+     -c                     Enable color output
+     -v                     Enable verbose output
+
+
+More informations about the "OpenPGP on Ethereum"
+specification as well as usage examples have been
+made available in EVM GPG manual, which can be browsed with
+
+  man \
+    evm-gpg
+
+ENDUSAGETEXT
+  _printf \
+    '%s\n' \
+    "${_usage_text}"
+  exit \
+    "${1}"
+}
+
+_display_flags() {
+  local \
+    _flag \
+    _flags=(
+      "${1}"
+    )
+  for _flag \
+    in "${_flags[@]}"; do
+  _msg_info \
+    "                             ${_flag}"
+  done
+}
+
+# Shows configuration options.
+_show_config() {
+  local \
+    _passphrase_show
+  if [[ "${key_passphrase}" != "" ]]; then
+    _passphrase_show="****"
+  fi
+  _msg_info "${app_name} configuration"
+  _msg_info "                Call date:   ${call_date}"
+  _msg_info "           Target command:   ${target_command}"
+  _msg_info "              Command key:   ${command_key}"
+  _msg_info "            Command value:   ${command_value}"
+  _msg_info "           GNUPG backends:   ${gnupg_backends[*]}"
+  _msg_info "         Receive options:"
+  _msg_info "               Input type:   ${input_type}"
+  _msg_info "           List options:"
+  _msg_info "              Output type:   ${output_type}"
+  _msg_info "              With colons:   ${with_colons}"
+  _msg_info "          GNUPG directory:   ${gnupg_home}"
+  _msg_info "   GNUPG public directory:   ${gnupg_public}"
+  _msg_info "        New key options:"
+  _msg_info "           Key passphrase:   ${_passphrase_show:-}"
+  _msg_info "              Key comment:   ${key_comment}"
+  _msg_info "              Publish key:   ${key_publish}"
+  _msg_info "    Credentials options:"
+  _msg_info "              Wallet name:   ${wallet_name}"
+  _msg_info "           Wallet address:   ${wallet_address}"
+  _msg_info "              Wallet path:   ${wallet_path}"
+  _msg_info "          Wallet password:   ${wallet_password}"
+  _msg_info "              Wallet seed:   ${wallet_seed}"
+  _msg_info "    Application options:"
+  _msg_info "          Cache directory:   ${cache_dir}"
+}
+
+_globals
+_global_variables
+_libevm_global_variables
+_requirements
+getopts_opts="$(
+  printf \
+    "%s" \
+    "a:S:H:P:C:Qt:i:o:b:" \
+    "C:" \
+    "$(_libevm_app_getopts_params_get)" \
+    "n:" \
+    "$(_wallet_getopts_params_get)" \
+    "B:W:cvh")"
+# shellcheck disable=SC2034
+while \
+  getopts \
+    "${getopts_opts}" \
+    arg; do
+  _wallet_getopts_case
+  _libevm_app_getopts_case
+  case \
+    "${arg}" in
+    a)
+      override_wallet_address="${OPTARG}" ;;
+    Q)
+      override_with_colons="y" ;;
+    t)
+      override_key_type="${OPTARG}" ;;
+    i)
+      override_input_type="${OPTARG}" ;;
+    o)
+      override_output_type="${OPTARG}" ;;
+    P)
+      override_key_passphrase="${OPTARG}" ;;
+    C)
+      override_key_comment="${OPTARG}" ;;
+    S)
+      override_key_publish="${OPTARG}" ;;
+    H)
+      override_gnupg_home="${OPTARG}" ;;
+    B)
+      gnu_backends+=(
+        "${OPTARG}"
+      );;
+    W)
+      override_cache_dir="${OPTARG}" ;;
+    c)
+      override_color="y" ;;
+    v)
+      override_quiet="n" ;;
+    h)
+      _set_overrides && \
+         _usage \
+           0 ;;
+    *)
+      if [[ " ${getopts_opts} " != *"${arg}"* ]]; then
+        _msg=(
+          "Invalid argument '${arg}'."
+        )
+        _msg_error \
+          "${_msg[*]}" \
+          0
+        _usage \
+          1
+      fi ;;
+  esac
+done
+shift \
+  $(( \
+    OPTIND - 1 \
+  ))
+if (( $# < 1 )); then
+  _msg=(
+    "No command given."
+  )
+  _msg_error \
+    "${_msg[*]}" \
+    0
+  _set_overrides
+  _usage \
+    1
+fi
+if (( 0 < "${#}" )); then
+  target_command="${1}"
+fi
+if (( 1 < "${#}" )); then
+  command_key="${2}"
+fi
+if (( 2 < "${#}" )); then
+  command_value="${3}"
+fi
+shift \
+  3 || \
+true
+command_args+=(
+  "$@"
+)
+_set_overrides
+_show_config
+app_opts=(
+  "${wallet_name}"
+  "${wallet_path}"
+  "${wallet_password}"
+  "${wallet_seed}"
+  "${wallet_address}"
+  "${gnupg_home}"
+  "${gnupg_public}"
+  "${gnupg_backends_amount}"
+  "${key_passphrase}"
+  "${key_comment}"
+  "${with_colons}"
+  "${input_type}"
+  "${output_type}"
+  "${key_type}"
+  "${key_publish}"
+  "${cache_dir}"
+  "${target_command}"
+  "${command_key}"
+  "${command_value}"
+  "${gnupg_backends[@]}"
+  "${command_args[@]}"
+)
+_evm_gpg \
+  "${app_opts[@]}"
+
+# vim:set sw=2 sts=-1 et:
