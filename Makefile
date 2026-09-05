@@ -46,7 +46,7 @@ DOC_FILES=\
       *.rst)
 SCRIPT_FILES=\
   $(wildcard \
-      $(_PROJECT)/*)
+      $(_PROJECT)/bash/*)
 
 all:
 
@@ -64,7 +64,7 @@ install: install-scripts install-doc install-man
 install-scripts:
 
 	$(_INSTALL_EXE) \
-	  "$(_PROJECT)/evm-gpg" \
+	  "$(_PROJECT)/bash/evm-gpg" \
 	  "$(BIN_DIR)/evm-gpg"
 
 install-doc:
