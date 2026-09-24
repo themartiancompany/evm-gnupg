@@ -48,7 +48,26 @@ SCRIPT_FILES=\
   $(wildcard \
       $(_PROJECT)/bash/*)
 
-all:
+all: build-man
+
+build-man:
+
+	git \
+	  submodule \
+	    update \
+	    --init \
+	      "man" || \
+	true
+	mkdir \
+	  -p \
+	  "build/man"
+	cd \
+	  "man"; \
+	make \
+	  build-man
+	cp \
+	  "man/build/"* \
+	  "build/man"
 
 check: shellcheck
 
@@ -80,6 +99,8 @@ install-doc:
 
 install-man:
 
+	make \
+	  build-man
 	$(_INSTALL_DIR) \
 	  "$(MAN_DIR)/man1"
 	rst2man \
