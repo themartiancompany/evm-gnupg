@@ -55,9 +55,11 @@ SCRIPT_FILES=\
   $(wildcard \
       $(_PROJECT)/bash/*)
 
-all: build-man
+all: prepare build-man
 
-build-man:
+prepare: prepare-man
+
+prepare-man:
 
 	git \
 	  submodule \
@@ -65,6 +67,11 @@ build-man:
 	    --init \
 	      "man" || \
 	true
+
+build-man:
+
+	make \
+	  prepare-man
 	mkdir \
 	  -p \
 	  "build/man"
@@ -108,10 +115,20 @@ install-man:
 
 	make \
 	  build-man
-	$(_INSTALL_DIR) \
-	  "$(MAN_DIR)/man1"
-	rst2man \
-	  "man/evm-gpg.1.rst" \
-	  "$(MAN_DIR)/man1/evm-gpg.1"
+	cd \
+	  "man"; \
+	make \
+	  install-man
 
-.PHONY: check install install-doc install-man install-scripts shellcheck
+uninstall: uninstall-man
+
+uninstall-man:
+
+	make \
+	  prepare
+	cd \
+	  "man"; \
+	make \
+	  uninstall-man
+
+.PHONY: check install install-doc install-man install-scripts prepare prepare-man prepare-scripts shellcheck uninstall uninstall-man
