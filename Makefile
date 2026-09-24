@@ -40,6 +40,13 @@ _INSTALL_DIR=\
 _INSTALL_EXE=\
   install \
     -vDm755
+_MAKE_EXE=\
+  chmod \
+    755
+_MAKE_LINK=\
+  ln \
+    -sv
+
 
 DOC_FILES=\
   $(wildcard \
